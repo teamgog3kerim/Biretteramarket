@@ -24,7 +24,7 @@ function Router() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-background min-h-screen relative">
+    <div className="max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto bg-background min-h-screen relative">
       <Switch>
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />

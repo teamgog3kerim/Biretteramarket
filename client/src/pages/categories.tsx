@@ -48,13 +48,13 @@ export default function Categories() {
 
       <div className="p-4">
         {/* Category Filters */}
-        <div className="flex space-x-2 mb-4 overflow-x-auto hide-scrollbar">
+        <div className="flex space-x-2 sm:space-x-3 mb-4 overflow-x-auto hide-scrollbar">
           {categoryFilters.map((category) => (
             <Button
               key={category.id || "all"}
               variant={selectedCategory === category.id ? "default" : "outline"}
               size="sm"
-              className="flex-none whitespace-nowrap"
+              className="flex-none whitespace-nowrap text-xs sm:text-sm px-3 sm:px-4 py-2"
               onClick={() => setSelectedCategory(category.id)}
               data-testid={`button-filter-${category.name.toLowerCase()}`}
             >
@@ -64,13 +64,13 @@ export default function Categories() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {products.map((product: any) => (
             <ProductCard key={product.id} product={product} />
           ))}
           {products.length === 0 && (
-            <div className="col-span-2 bg-muted rounded-lg p-6 text-center">
-              <p className="text-muted-foreground">
+            <div className="col-span-2 sm:col-span-3 lg:col-span-4 xl:col-span-5 bg-muted rounded-lg p-4 sm:p-6 text-center">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 {searchQuery || selectedCategory 
                   ? "No products found matching your criteria" 
                   : "No products available"

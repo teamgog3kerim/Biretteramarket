@@ -141,7 +141,7 @@ export default function Calculators() {
         <p className="text-sm opacity-90">Construction material calculation tools</p>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-6xl mx-auto">
         {/* Metal Weight Calculator */}
         <Card>
           <CardHeader>
@@ -175,9 +175,9 @@ export default function Calculators() {
               </Select>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div>
-                <Label htmlFor="length">Length (mm)</Label>
+                <Label htmlFor="length" className="text-sm font-medium">Length (mm)</Label>
                 <Input
                   id="length"
                   type="number"
@@ -189,11 +189,12 @@ export default function Calculators() {
                       length: parseFloat(e.target.value) || 0,
                     })
                   }
+                  className="mt-1"
                   data-testid="input-length"
                 />
               </div>
               <div>
-                <Label htmlFor="width">Width (mm)</Label>
+                <Label htmlFor="width" className="text-sm font-medium">Width (mm)</Label>
                 <Input
                   id="width"
                   type="number"
@@ -205,26 +206,27 @@ export default function Calculators() {
                       width: parseFloat(e.target.value) || 0,
                     })
                   }
+                  className="mt-1"
                   data-testid="input-width"
                 />
               </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="thickness">Thickness (mm)</Label>
-              <Input
-                id="thickness"
-                type="number"
-                placeholder="10"
-                value={metalWeightInputs.thickness || ""}
-                onChange={(e) =>
-                  setMetalWeightInputs({
-                    ...metalWeightInputs,
-                    thickness: parseFloat(e.target.value) || 0,
-                  })
-                }
-                data-testid="input-thickness"
-              />
+              <div className="sm:col-span-2 lg:col-span-1">
+                <Label htmlFor="thickness" className="text-sm font-medium">Thickness (mm)</Label>
+                <Input
+                  id="thickness"
+                  type="number"
+                  placeholder="5"
+                  value={metalWeightInputs.thickness || ""}
+                  onChange={(e) =>
+                    setMetalWeightInputs({
+                      ...metalWeightInputs,
+                      thickness: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  className="mt-1"
+                  data-testid="input-thickness"
+                />
+              </div>
             </div>
             
             <Button

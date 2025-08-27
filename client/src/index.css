@@ -98,4 +98,40 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* Responsive container */
+  .container {
+    @apply w-full mx-auto px-4;
+  }
+
+  @screen sm {
+    .container {
+      @apply max-w-screen-sm;
+    }
+  }
+
+  @screen md {
+    .container {
+      @apply max-w-screen-md px-6;
+    }
+  }
+
+  @screen lg {
+    .container {
+      @apply max-w-screen-lg px-8;
+    }
+  }
+
+  @screen xl {
+    .container {
+      @apply max-w-screen-xl;
+    }
+  }
 }

@@ -88,18 +88,18 @@ export default function Home() {
 
       {/* Quick Categories */}
       <div className="px-4 py-4">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3">
           {quickCategories.map((category) => {
             const Icon = category.icon;
             return (
               <Button
                 key={category.name}
                 variant="outline"
-                className="flex flex-col p-3 h-auto space-y-1"
+                className="flex flex-col p-3 sm:p-4 h-auto space-y-1 sm:space-y-2"
                 data-testid={`button-category-${category.name.toLowerCase()}`}
               >
-                <Icon className={`h-6 w-6 ${category.color}`} />
-                <span className="text-xs font-medium">{category.name}</span>
+                <Icon className={`h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 ${category.color}`} />
+                <span className="text-xs sm:text-sm font-medium">{category.name}</span>
               </Button>
             );
           })}
@@ -109,19 +109,19 @@ export default function Home() {
       {/* Featured Products Carousel */}
       <div className="px-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">Featured Products</h2>
-          <Button variant="link" className="text-primary p-0" data-testid="link-view-all-featured">
+          <h2 className="text-lg sm:text-xl font-bold">Featured Products</h2>
+          <Button variant="link" className="text-primary p-0 text-sm sm:text-base" data-testid="link-view-all-featured">
             View All
           </Button>
         </div>
-        <div className="flex space-x-4 overflow-x-auto hide-scrollbar">
+        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto hide-scrollbar">
           {featuredProducts.map((product: any) => (
-            <div key={product.id} className="flex-none w-48">
+            <div key={product.id} className="flex-none w-44 sm:w-48 md:w-52">
               <ProductCard product={product} compact />
             </div>
           ))}
           {featuredProducts.length === 0 && (
-            <div className="flex-none w-48 bg-muted rounded-lg p-6 text-center">
+            <div className="flex-none w-44 sm:w-48 bg-muted rounded-lg p-4 sm:p-6 text-center">
               <p className="text-muted-foreground text-sm">No featured products available</p>
             </div>
           )}
@@ -191,14 +191,14 @@ export default function Home() {
 
       {/* Recent Products */}
       <div className="px-4 mb-6">
-        <h2 className="text-lg font-bold mb-3">Recent Products</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <h2 className="text-lg sm:text-xl font-bold mb-3">Recent Products</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {recentProducts.map((product: any) => (
             <ProductCard key={product.id} product={product} />
           ))}
           {recentProducts.length === 0 && (
-            <div className="col-span-2 bg-muted rounded-lg p-6 text-center">
-              <p className="text-muted-foreground">No products available</p>
+            <div className="col-span-2 sm:col-span-3 lg:col-span-4 xl:col-span-5 bg-muted rounded-lg p-4 sm:p-6 text-center">
+              <p className="text-muted-foreground text-sm sm:text-base">No products available</p>
             </div>
           )}
         </div>

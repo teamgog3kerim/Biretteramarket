@@ -112,7 +112,7 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         </Button>
       </div>
 
-      <CardContent className={cn("p-3", compact && "p-2")}>
+      <CardContent className={cn("p-2 sm:p-3", compact && "p-2")}>
         <div className="mb-1">
           <Badge variant="outline" className="text-xs">
             {product.category.name}
@@ -121,7 +121,7 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         
         <h3 className={cn(
           "font-medium mb-1 line-clamp-1",
-          compact ? "text-sm" : "text-sm"
+          compact ? "text-xs sm:text-sm" : "text-sm"
         )} data-testid={`text-product-name-${product.id}`}>
           {product.name}
         </h3>
@@ -129,22 +129,22 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         {product.description && (
           <p className={cn(
             "text-muted-foreground mb-2 line-clamp-2",
-            compact ? "text-xs" : "text-xs"
+            compact ? "text-xs" : "text-xs sm:text-sm"
           )}>
             {product.description}
           </p>
         )}
         
         <div className="flex items-center justify-between mb-2">
-          <div>
-            <span className="text-primary font-bold" data-testid={`text-product-price-${product.id}`}>
+          <div className="flex-1 min-w-0">
+            <span className="text-primary font-bold text-xs sm:text-sm" data-testid={`text-product-price-${product.id}`}>
               {formattedPrice}
               {product.unit && <span className="text-xs text-muted-foreground">/{product.unit}</span>}
             </span>
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
             <Star className="h-3 w-3 text-accent mr-1 fill-current" />
-            4.8
+            <span className="hidden sm:inline">4.8</span>
           </div>
         </div>
         
@@ -157,7 +157,7 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
           <Button
             size="sm"
             variant="outline"
-            className="ml-2 h-7 w-7 p-0"
+            className="ml-2 h-6 w-6 sm:h-7 sm:w-7 p-0"
             data-testid={`button-add-cart-${product.id}`}
           >
             <ShoppingCart className="h-3 w-3" />
