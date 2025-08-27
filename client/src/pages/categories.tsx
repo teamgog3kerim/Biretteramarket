@@ -4,16 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/product-card";
 import { Search } from "lucide-react";
+import type { Category, Product, User } from "@shared/schema";
+
+type ProductWithRelations = Product & { seller: User; category: Category };
 
 export default function Categories() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/products", { 
       categoryId: selectedCategory, 
       search: searchQuery || undefined 
@@ -22,7 +25,7 @@ export default function Categories() {
 
   const categoryFilters = [
     { id: null, name: "All" },
-    ...categories.map((cat: any) => ({ id: cat.id, name: cat.name })),
+    ...categories.map((cat) => ({ id: cat.id, name: cat.name })),
   ];
 
   return (

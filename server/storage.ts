@@ -105,7 +105,30 @@ export class DatabaseStorage implements IStorage {
     sellerId?: string;
     limit?: number;
   }): Promise<(Product & { seller: User; category: Category })[]> {
-    let query = db
+    const conditions = [eq(products.active, true)];
+
+    if (filters?.categoryId) {
+      conditions.push(eq(products.categoryId, filters.categoryId));
+    }
+
+    if (filters?.search) {
+      conditions.push(
+        or(
+          like(products.name, `%${filters.search}%`),
+          like(products.description, `%${filters.search}%`)
+        )!
+      );
+    }
+
+    if (filters?.featured) {
+      conditions.push(eq(products.featured, true));
+    }
+
+    if (filters?.sellerId) {
+      conditions.push(eq(products.sellerId, filters.sellerId));
+    }
+
+    const baseQuery = db
       .select({
         id: products.id,
         sellerId: products.sellerId,
@@ -125,39 +148,18 @@ export class DatabaseStorage implements IStorage {
       .from(products)
       .leftJoin(users, eq(products.sellerId, users.id))
       .leftJoin(categories, eq(products.categoryId, categories.id))
-      .where(eq(products.active, true));
+      .where(and(...conditions))
+      .orderBy(desc(products.createdAt));
 
-    if (filters?.categoryId) {
-      query = query.where(and(eq(products.active, true), eq(products.categoryId, filters.categoryId)));
-    }
-
-    if (filters?.search) {
-      query = query.where(
-        and(
-          eq(products.active, true),
-          or(
-            like(products.name, `%${filters.search}%`),
-            like(products.description, `%${filters.search}%`)
-          )
-        )
-      );
-    }
-
-    if (filters?.featured) {
-      query = query.where(and(eq(products.active, true), eq(products.featured, true)));
-    }
-
-    if (filters?.sellerId) {
-      query = query.where(and(eq(products.active, true), eq(products.sellerId, filters.sellerId)));
-    }
-
-    query = query.orderBy(desc(products.createdAt));
-
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    return await query;
+    const results = filters?.limit 
+      ? await baseQuery.limit(filters.limit)
+      : await baseQuery;
+    
+    return results.map(row => ({
+      ...row,
+      seller: row.seller!,
+      category: row.category!,
+    }));
   }
 
   async getProduct(id: string): Promise<(Product & { seller: User; category: Category }) | undefined> {
@@ -183,7 +185,13 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(products.id, id));
     
-    return product;
+    if (!product) return undefined;
+    
+    return {
+      ...product,
+      seller: product.seller!,
+      category: product.category!,
+    };
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
@@ -240,34 +248,33 @@ export class DatabaseStorage implements IStorage {
 
   // Favorites operations
   async getUserFavorites(userId: string): Promise<(Favorite & { product: Product & { seller: User; category: Category } })[]> {
-    return await db
+    const results = await db
       .select({
         id: favorites.id,
         userId: favorites.userId,
         productId: favorites.productId,
         createdAt: favorites.createdAt,
-        product: {
-          id: products.id,
-          sellerId: products.sellerId,
-          categoryId: products.categoryId,
-          name: products.name,
-          description: products.description,
-          price: products.price,
-          unit: products.unit,
-          imageUrl: products.imageUrl,
-          featured: products.featured,
-          active: products.active,
-          createdAt: products.createdAt,
-          updatedAt: products.updatedAt,
-          seller: users,
-          category: categories,
-        },
+        product: products,
+        seller: users,
+        category: categories,
       })
       .from(favorites)
       .leftJoin(products, eq(favorites.productId, products.id))
       .leftJoin(users, eq(products.sellerId, users.id))
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(favorites.userId, userId));
+
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      productId: row.productId,
+      createdAt: row.createdAt,
+      product: {
+        ...row.product!,
+        seller: row.seller!,
+        category: row.category!,
+      },
+    }));
   }
 
   async addToFavorites(favorite: InsertFavorite): Promise<Favorite> {

@@ -22,6 +22,10 @@ import {
   Languages, 
   LogOut 
 } from "lucide-react";
+import type { Product, User as UserType, Category, Favorite } from "@shared/schema";
+
+type ProductWithRelations = Product & { seller: UserType; category: Category };
+type FavoriteWithRelations = Favorite & { product: ProductWithRelations };
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -29,12 +33,12 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
-  const { data: userProducts = [] } = useQuery({
+  const { data: userProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/seller/products"],
     enabled: user?.userType === "seller",
   });
 
-  const { data: favorites = [] } = useQuery({
+  const { data: favorites = [] } = useQuery<FavoriteWithRelations[]>({
     queryKey: ["/api/favorites"],
   });
 
@@ -89,7 +93,7 @@ export default function Profile() {
   };
 
   const getSubscriptionStatus = () => {
-    if (!user?.subscription) return null;
+    if (!user?.subscription || !user.subscription.endDate) return null;
     
     const endDate = new Date(user.subscription.endDate);
     const now = new Date();

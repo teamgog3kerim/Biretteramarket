@@ -7,21 +7,25 @@ import ProductCard from "@/components/product-card";
 import SubscriptionModal from "@/components/subscription-modal";
 import { useState } from "react";
 import { Search, Filter, Bell, User, Calculator, Hammer, Factory, HardHat } from "lucide-react";
+import type { Product, User as UserType, Category } from "@shared/schema";
+
+type ProductWithRelations = Product & { seller: UserType; category: Category };
+type TopSeller = UserType & { productCount: number };
 
 export default function Home() {
   const { user } = useAuth();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: featuredProducts = [] } = useQuery({
+  const { data: featuredProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/products", { featured: true, limit: 10 }],
   });
 
-  const { data: topSellers = [] } = useQuery({
+  const { data: topSellers = [] } = useQuery<TopSeller[]>({
     queryKey: ["/api/sellers/top", { limit: 5 }],
   });
 
-  const { data: recentProducts = [] } = useQuery({
+  const { data: recentProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/products", { limit: 6 }],
   });
 

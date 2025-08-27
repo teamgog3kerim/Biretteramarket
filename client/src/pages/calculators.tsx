@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Calculator, History, Weight } from "lucide-react";
+import type { Calculation } from "@shared/schema";
 
 interface MetalWeightInputs {
   materialType: string;
@@ -42,7 +43,7 @@ export default function Calculators() {
   const [metalWeightResult, setMetalWeightResult] = useState<number | null>(null);
   const [tmtResult, setTMTResult] = useState<{ weight: number; cost: number } | null>(null);
 
-  const { data: calculations = [] } = useQuery({
+  const { data: calculations = [] } = useQuery<Calculation[]>({
     queryKey: ["/api/calculations"],
   });
 
