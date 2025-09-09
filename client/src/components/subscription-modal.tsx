@@ -71,7 +71,7 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
     {
       id: "monthly",
       name: "Monthly Premium",
-      price: "₹299",
+      price: "ETB 899",
       duration: "per month",
       features: [
         "Unlimited seller contacts",
@@ -84,10 +84,10 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
     {
       id: "yearly",
       name: "Yearly Premium", 
-      price: "₹2,999",
+      price: "ETB 8,999",
       duration: "per year",
-      originalPrice: "₹3,588",
-      savings: "Save ₹589!",
+      originalPrice: "ETB 10,788",
+      savings: "Save ETB 1,789!",
       features: [
         "Everything in Monthly plan",
         "2 months free",

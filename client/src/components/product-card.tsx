@@ -70,11 +70,11 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
     : product.seller.email.split('@')[0];
 
   const price = parseFloat(product.price);
-  const formattedPrice = price.toLocaleString('en-IN', {
+  const formattedPrice = price.toLocaleString('en-ET', {
     style: 'currency',
-    currency: 'INR',
+    currency: 'ETB',
     maximumFractionDigits: 0,
-  }).replace('₹', '₹');
+  });
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
