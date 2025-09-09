@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { initializeMarketReporting } from "./marketReports";
+import { initializeSampleData } from "./seedTransactions";
 import { 
   insertProductSchema, 
   insertCategorySchema, 
@@ -35,6 +36,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize market reporting
   await initializeMarketReporting();
+
+  // Initialize sample data for development
+  await initializeSampleData();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
