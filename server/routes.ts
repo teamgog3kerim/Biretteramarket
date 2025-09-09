@@ -39,7 +39,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscription,
       });
     } catch (error) {
-      console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -50,7 +49,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categories = await storage.getCategories();
       res.json(categories);
     } catch (error) {
-      console.error("Error fetching categories:", error);
       res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
@@ -67,7 +65,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(products);
     } catch (error) {
-      console.error("Error fetching products:", error);
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });
@@ -80,7 +77,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(product);
     } catch (error) {
-      console.error("Error fetching product:", error);
       res.status(500).json({ message: "Failed to fetch product" });
     }
   });
@@ -102,7 +98,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.createProduct(validatedData);
       res.status(201).json(product);
     } catch (error) {
-      console.error("Error creating product:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid product data", errors: error.errors });
       }
@@ -122,7 +117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedProduct = await storage.updateProduct(req.params.id, req.body);
       res.json(updatedProduct);
     } catch (error) {
-      console.error("Error updating product:", error);
       res.status(500).json({ message: "Failed to update product" });
     }
   });
@@ -139,7 +133,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteProduct(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting product:", error);
       res.status(500).json({ message: "Failed to delete product" });
     }
   });
@@ -151,7 +144,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getProducts({ sellerId: userId });
       res.json(products);
     } catch (error) {
-      console.error("Error fetching seller products:", error);
       res.status(500).json({ message: "Failed to fetch seller products" });
     }
   });
@@ -165,7 +157,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(topSellers);
     } catch (error) {
-      console.error("Error fetching top sellers:", error);
       res.status(500).json({ message: "Failed to fetch top sellers" });
     }
   });
@@ -177,7 +168,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subscription = await storage.getUserSubscription(userId);
       res.json(subscription);
     } catch (error) {
-      console.error("Error fetching subscription:", error);
       res.status(500).json({ message: "Failed to fetch subscription" });
     }
   });
@@ -215,7 +205,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(subscription);
     } catch (error) {
-      console.error("Error creating subscription:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid subscription data", errors: error.errors });
       }
@@ -230,7 +219,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const favorites = await storage.getUserFavorites(userId);
       res.json(favorites);
     } catch (error) {
-      console.error("Error fetching favorites:", error);
       res.status(500).json({ message: "Failed to fetch favorites" });
     }
   });
@@ -246,7 +234,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const favorite = await storage.addToFavorites(validatedData);
       res.status(201).json(favorite);
     } catch (error) {
-      console.error("Error adding to favorites:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid favorite data", errors: error.errors });
       }
@@ -260,7 +247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.removeFromFavorites(userId, req.params.productId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error removing from favorites:", error);
       res.status(500).json({ message: "Failed to remove from favorites" });
     }
   });
@@ -272,7 +258,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const calculations = await storage.getUserCalculations(userId);
       res.json(calculations);
     } catch (error) {
-      console.error("Error fetching calculations:", error);
       res.status(500).json({ message: "Failed to fetch calculations" });
     }
   });
@@ -288,7 +273,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const calculation = await storage.createCalculation(validatedData);
       res.status(201).json(calculation);
     } catch (error) {
-      console.error("Error creating calculation:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid calculation data", errors: error.errors });
       }
@@ -317,7 +301,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedUser);
     } catch (error) {
-      console.error("Error updating user type:", error);
       res.status(500).json({ message: "Failed to update user type" });
     }
   });
