@@ -92,16 +92,69 @@ export const calculations = pgTable("calculations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Market reports table for daily price tracking
+export const marketReports = pgTable("market_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").notNull().references(() => categories.id),
+  reportDate: timestamp("report_date").notNull(),
+  averagePrice: decimal("average_price", { precision: 10, scale: 2 }),
+  minPrice: decimal("min_price", { precision: 10, scale: 2 }),
+  maxPrice: decimal("max_price", { precision: 10, scale: 2 }),
+  totalListings: integer("total_listings").default(0),
+  priceChange: decimal("price_change", { precision: 10, scale: 2 }),
+  priceChangePercent: decimal("price_change_percent", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Transactions table for sales tracking
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerId: varchar("seller_id").notNull().references(() => users.id),
+  buyerId: varchar("buyer_id").notNull().references(() => users.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status").default("pending"), // 'pending', 'completed', 'cancelled'
+  transactionDate: timestamp("transaction_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Product views for analytics
+export const productViews = pgTable("product_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  userId: varchar("user_id").references(() => users.id), // can be null for anonymous views
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  viewedAt: timestamp("viewed_at").defaultNow(),
+});
+
+// Price history for tracking product price changes
+export const priceHistory = pgTable("price_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  oldPrice: decimal("old_price", { precision: 10, scale: 2 }),
+  newPrice: decimal("new_price", { precision: 10, scale: 2 }).notNull(),
+  changeReason: varchar("change_reason"), // 'market_adjustment', 'promotion', 'cost_change'
+  changedAt: timestamp("changed_at").defaultNow(),
+});
+
 // Relations
 export const userRelations = relations(users, ({ many, one }) => ({
   products: many(products),
   subscriptions: many(subscriptions),
   favorites: many(favorites),
   calculations: many(calculations),
+  salesTransactions: many(transactions, { relationName: "sellerTransactions" }),
+  purchaseTransactions: many(transactions, { relationName: "buyerTransactions" }),
+  productViews: many(productViews),
 }));
 
 export const categoryRelations = relations(categories, ({ many }) => ({
   products: many(products),
+  marketReports: many(marketReports),
 }));
 
 export const productRelations = relations(products, ({ one, many }) => ({
@@ -114,6 +167,9 @@ export const productRelations = relations(products, ({ one, many }) => ({
     references: [categories.id],
   }),
   favorites: many(favorites),
+  transactions: many(transactions),
+  views: many(productViews),
+  priceHistory: many(priceHistory),
 }));
 
 export const subscriptionRelations = relations(subscriptions, ({ one }) => ({
@@ -138,6 +194,48 @@ export const calculationRelations = relations(calculations, ({ one }) => ({
   user: one(users, {
     fields: [calculations.userId],
     references: [users.id],
+  }),
+}));
+
+export const marketReportRelations = relations(marketReports, ({ one }) => ({
+  category: one(categories, {
+    fields: [marketReports.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const transactionRelations = relations(transactions, ({ one }) => ({
+  seller: one(users, {
+    fields: [transactions.sellerId],
+    references: [users.id],
+    relationName: "sellerTransactions",
+  }),
+  buyer: one(users, {
+    fields: [transactions.buyerId],
+    references: [users.id],
+    relationName: "buyerTransactions",
+  }),
+  product: one(products, {
+    fields: [transactions.productId],
+    references: [products.id],
+  }),
+}));
+
+export const productViewRelations = relations(productViews, ({ one }) => ({
+  product: one(products, {
+    fields: [productViews.productId],
+    references: [products.id],
+  }),
+  user: one(users, {
+    fields: [productViews.userId],
+    references: [users.id],
+  }),
+}));
+
+export const priceHistoryRelations = relations(priceHistory, ({ one }) => ({
+  product: one(products, {
+    fields: [priceHistory.productId],
+    references: [products.id],
   }),
 }));
 
@@ -174,6 +272,27 @@ export const insertCalculationSchema = createInsertSchema(calculations).omit({
   createdAt: true,
 });
 
+export const insertMarketReportSchema = createInsertSchema(marketReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProductViewSchema = createInsertSchema(productViews).omit({
+  id: true,
+  viewedAt: true,
+});
+
+export const insertPriceHistorySchema = createInsertSchema(priceHistory).omit({
+  id: true,
+  changedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -193,3 +312,15 @@ export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
 
 export type Calculation = typeof calculations.$inferSelect;
 export type InsertCalculation = z.infer<typeof insertCalculationSchema>;
+
+export type MarketReport = typeof marketReports.$inferSelect;
+export type InsertMarketReport = z.infer<typeof insertMarketReportSchema>;
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+export type ProductView = typeof productViews.$inferSelect;
+export type InsertProductView = z.infer<typeof insertProductViewSchema>;
+
+export type PriceHistory = typeof priceHistory.$inferSelect;
+export type InsertPriceHistory = z.infer<typeof insertPriceHistorySchema>;
