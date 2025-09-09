@@ -20,8 +20,10 @@ import {
   Settings, 
   HelpCircle, 
   Languages, 
-  LogOut 
+  LogOut,
+  BarChart3
 } from "lucide-react";
+import { Link } from "wouter";
 import type { Product, User as UserType, Category, Favorite } from "@shared/schema";
 
 type ProductWithRelations = Product & { seller: UserType; category: Category };
@@ -247,6 +249,34 @@ export default function Profile() {
                 >
                   {subscriptionStatus?.planType === 'free_trial' ? 'Upgrade' : 'Start Trial'}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Seller Dashboard (Sellers only) */}
+        {user?.userType === 'seller' && (
+          <Card className="mb-4 bg-gradient-to-r from-primary to-secondary text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold flex items-center">
+                    <BarChart3 className="h-5 w-5 mr-2" />
+                    Seller Dashboard
+                  </h3>
+                  <p className="text-sm opacity-90">
+                    View your sales analytics, market reports, and business insights
+                  </p>
+                </div>
+                <Link href="/seller-dashboard">
+                  <Button 
+                    className="bg-white text-primary hover:bg-white/90"
+                    size="sm"
+                    data-testid="button-seller-dashboard"
+                  >
+                    View Dashboard
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

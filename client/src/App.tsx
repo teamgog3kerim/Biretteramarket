@@ -9,6 +9,7 @@ import Home from "@/pages/home";
 import Categories from "@/pages/categories";
 import Calculators from "@/pages/calculators";
 import Profile from "@/pages/profile";
+import SellerDashboard from "@/pages/seller-dashboard";
 import BottomNavigation from "@/components/bottom-navigation";
 import NotFound from "@/pages/not-found";
 
@@ -34,6 +35,7 @@ function Router() {
             <Route path="/categories" component={Categories} />
             <Route path="/calculators" component={Calculators} />
             <Route path="/profile" component={Profile} />
+            <Route path="/seller-dashboard" component={SellerDashboard} />
           </>
         )}
         <Route component={NotFound} />
