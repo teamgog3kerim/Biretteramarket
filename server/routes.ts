@@ -2,7 +2,17 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertProductSchema, insertCategorySchema, insertSubscriptionSchema, insertFavoriteSchema, insertCalculationSchema } from "@shared/schema";
+import { 
+  insertProductSchema, 
+  insertCategorySchema, 
+  insertSubscriptionSchema, 
+  insertFavoriteSchema, 
+  insertCalculationSchema,
+  insertMarketReportSchema,
+  insertTransactionSchema,
+  insertProductViewSchema,
+  insertPriceHistorySchema
+} from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -302,6 +312,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user type" });
+    }
+  });
+
+  // Market report routes
+  app.get('/api/market-reports', async (req, res) => {
+    try {
+      const { date } = req.query;
+      const targetDate = date ? new Date(date as string) : undefined;
+      const reports = await storage.getDailyMarketReports(targetDate);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch market reports" });
+    }
+  });
+
+  app.get('/api/market-reports/category/:categoryId', async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const { days } = req.query;
+      const reports = await storage.getMarketReportsByCategory(
+        categoryId, 
+        days ? parseInt(days as string) : undefined
+      );
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch category market reports" });
+    }
+  });
+
+  // Seller analytics routes
+  app.get('/api/seller/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userType !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can access analytics" });
+      }
+
+      const analytics = await storage.getSellerAnalytics(userId);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch seller analytics" });
+    }
+  });
+
+  app.get('/api/seller/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userType !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can access transactions" });
+      }
+
+      const { limit } = req.query;
+      const transactions = await storage.getSellerTransactions(
+        userId,
+        limit ? parseInt(limit as string) : undefined
+      );
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch seller transactions" });
+    }
+  });
+
+  // Product analytics routes
+  app.post('/api/products/:id/view', async (req, res) => {
+    try {
+      const productId = req.params.id;
+      const { userId, ipAddress, userAgent } = req.body;
+      
+      const view = await storage.createProductView({
+        productId,
+        userId: userId || null,
+        ipAddress,
+        userAgent,
+      });
+      
+      res.status(201).json(view);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to record product view" });
+    }
+  });
+
+  app.get('/api/products/:id/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const productId = req.params.id;
+      const userId = req.user.claims.sub;
+      
+      // Check if user owns this product
+      const product = await storage.getProduct(productId);
+      if (!product || product.sellerId !== userId) {
+        return res.status(403).json({ message: "You can only view analytics for your own products" });
+      }
+
+      const analytics = await storage.getProductAnalytics(productId);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch product analytics" });
+    }
+  });
+
+  // Transaction routes
+  app.post('/api/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const buyerId = req.user.claims.sub;
+      const validatedData = insertTransactionSchema.parse({
+        ...req.body,
+        buyerId,
+      });
+
+      const transaction = await storage.createTransaction(validatedData);
+      res.status(201).json(transaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid transaction data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create transaction" });
     }
   });
 

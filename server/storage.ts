@@ -5,6 +5,10 @@ import {
   subscriptions,
   favorites,
   calculations,
+  marketReports,
+  transactions,
+  productViews,
+  priceHistory,
   type User,
   type UpsertUser,
   type Product,
@@ -17,9 +21,17 @@ import {
   type InsertFavorite,
   type Calculation,
   type InsertCalculation,
+  type MarketReport,
+  type InsertMarketReport,
+  type Transaction,
+  type InsertTransaction,
+  type ProductView,
+  type InsertProductView,
+  type PriceHistory,
+  type InsertPriceHistory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, like, or, sql } from "drizzle-orm";
+import { eq, desc, and, like, or, sql, gte, lte, count } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -60,6 +72,33 @@ export interface IStorage {
   
   // Seller operations
   getTopSellers(limit?: number): Promise<(User & { productCount: number })[]>;
+  
+  // Market report operations
+  createMarketReport(report: InsertMarketReport): Promise<MarketReport>;
+  getDailyMarketReports(date?: Date): Promise<(MarketReport & { category: Category })[]>;
+  getMarketReportsByCategory(categoryId: string, days?: number): Promise<MarketReport[]>;
+  
+  // Transaction operations
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  getSellerTransactions(sellerId: string, limit?: number): Promise<(Transaction & { buyer: User; product: Product })[]>;
+  getSellerAnalytics(sellerId: string): Promise<{
+    totalSales: number;
+    totalRevenue: string;
+    avgOrderValue: string;
+    topProducts: (Product & { salesCount: number; revenue: string })[];
+    monthlySales: { month: string; sales: number; revenue: string }[];
+  }>;
+  
+  // Product view operations
+  createProductView(view: InsertProductView): Promise<ProductView>;
+  getProductAnalytics(productId: string): Promise<{
+    totalViews: number;
+    dailyViews: { date: string; views: number }[];
+  }>;
+  
+  // Price history operations
+  createPriceHistory(history: InsertPriceHistory): Promise<PriceHistory>;
+  getProductPriceHistory(productId: string): Promise<PriceHistory[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -329,6 +368,239 @@ export class DatabaseStorage implements IStorage {
       .groupBy(users.id)
       .orderBy(desc(sql`count(${products.id})`))
       .limit(limit);
+  }
+
+  // Market report operations
+  async createMarketReport(report: InsertMarketReport): Promise<MarketReport> {
+    const [newReport] = await db
+      .insert(marketReports)
+      .values(report)
+      .returning();
+    return newReport;
+  }
+
+  async getDailyMarketReports(date?: Date): Promise<(MarketReport & { category: Category })[]> {
+    const targetDate = date || new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const results = await db
+      .select({
+        id: marketReports.id,
+        categoryId: marketReports.categoryId,
+        reportDate: marketReports.reportDate,
+        averagePrice: marketReports.averagePrice,
+        minPrice: marketReports.minPrice,
+        maxPrice: marketReports.maxPrice,
+        totalListings: marketReports.totalListings,
+        priceChange: marketReports.priceChange,
+        priceChangePercent: marketReports.priceChangePercent,
+        createdAt: marketReports.createdAt,
+        category: categories,
+      })
+      .from(marketReports)
+      .leftJoin(categories, eq(marketReports.categoryId, categories.id))
+      .where(and(
+        gte(marketReports.reportDate, startOfDay),
+        lte(marketReports.reportDate, endOfDay)
+      ))
+      .orderBy(desc(marketReports.createdAt));
+
+    return results.map(row => ({
+      ...row,
+      category: row.category!,
+    }));
+  }
+
+  async getMarketReportsByCategory(categoryId: string, days = 30): Promise<MarketReport[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    return await db
+      .select()
+      .from(marketReports)
+      .where(and(
+        eq(marketReports.categoryId, categoryId),
+        gte(marketReports.reportDate, startDate)
+      ))
+      .orderBy(desc(marketReports.reportDate));
+  }
+
+  // Transaction operations
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [newTransaction] = await db
+      .insert(transactions)
+      .values(transaction)
+      .returning();
+    return newTransaction;
+  }
+
+  async getSellerTransactions(sellerId: string, limit = 50): Promise<(Transaction & { buyer: User; product: Product })[]> {
+    const results = await db
+      .select({
+        id: transactions.id,
+        sellerId: transactions.sellerId,
+        buyerId: transactions.buyerId,
+        productId: transactions.productId,
+        quantity: transactions.quantity,
+        unitPrice: transactions.unitPrice,
+        totalAmount: transactions.totalAmount,
+        status: transactions.status,
+        transactionDate: transactions.transactionDate,
+        createdAt: transactions.createdAt,
+        updatedAt: transactions.updatedAt,
+        buyer: users,
+        product: products,
+      })
+      .from(transactions)
+      .leftJoin(users, eq(transactions.buyerId, users.id))
+      .leftJoin(products, eq(transactions.productId, products.id))
+      .where(eq(transactions.sellerId, sellerId))
+      .orderBy(desc(transactions.transactionDate))
+      .limit(limit);
+
+    return results.map(row => ({
+      ...row,
+      buyer: row.buyer!,
+      product: row.product!,
+    }));
+  }
+
+  async getSellerAnalytics(sellerId: string): Promise<{
+    totalSales: number;
+    totalRevenue: string;
+    avgOrderValue: string;
+    topProducts: (Product & { salesCount: number; revenue: string })[];
+    monthlySales: { month: string; sales: number; revenue: string }[];
+  }> {
+    // Get total sales and revenue
+    const [salesSummary] = await db
+      .select({
+        totalSales: sql<number>`count(*)::int`,
+        totalRevenue: sql<string>`coalesce(sum(${transactions.totalAmount}), 0)::text`,
+        avgOrderValue: sql<string>`coalesce(avg(${transactions.totalAmount}), 0)::text`,
+      })
+      .from(transactions)
+      .where(and(
+        eq(transactions.sellerId, sellerId),
+        eq(transactions.status, "completed")
+      ));
+
+    // Get top products by sales
+    const topProducts = await db
+      .select({
+        id: products.id,
+        sellerId: products.sellerId,
+        categoryId: products.categoryId,
+        name: products.name,
+        description: products.description,
+        price: products.price,
+        unit: products.unit,
+        imageUrl: products.imageUrl,
+        featured: products.featured,
+        active: products.active,
+        createdAt: products.createdAt,
+        updatedAt: products.updatedAt,
+        salesCount: sql<number>`count(${transactions.id})::int`,
+        revenue: sql<string>`sum(${transactions.totalAmount})::text`,
+      })
+      .from(products)
+      .leftJoin(transactions, and(
+        eq(products.id, transactions.productId),
+        eq(transactions.status, "completed")
+      ))
+      .where(eq(products.sellerId, sellerId))
+      .groupBy(products.id)
+      .orderBy(desc(sql`count(${transactions.id})`))
+      .limit(5);
+
+    // Get monthly sales
+    const monthlySales = await db
+      .select({
+        month: sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`,
+        sales: sql<number>`count(*)::int`,
+        revenue: sql<string>`sum(${transactions.totalAmount})::text`,
+      })
+      .from(transactions)
+      .where(and(
+        eq(transactions.sellerId, sellerId),
+        eq(transactions.status, "completed"),
+        gte(transactions.transactionDate, new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1))
+      ))
+      .groupBy(sql`to_char(${transactions.transactionDate}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${transactions.transactionDate}, 'YYYY-MM')`);
+
+    return {
+      totalSales: salesSummary?.totalSales || 0,
+      totalRevenue: salesSummary?.totalRevenue || "0",
+      avgOrderValue: salesSummary?.avgOrderValue || "0",
+      topProducts,
+      monthlySales,
+    };
+  }
+
+  // Product view operations
+  async createProductView(view: InsertProductView): Promise<ProductView> {
+    const [newView] = await db
+      .insert(productViews)
+      .values(view)
+      .returning();
+    return newView;
+  }
+
+  async getProductAnalytics(productId: string): Promise<{
+    totalViews: number;
+    dailyViews: { date: string; views: number }[];
+  }> {
+    // Get total views
+    const [totalViewsResult] = await db
+      .select({
+        totalViews: sql<number>`count(*)::int`,
+      })
+      .from(productViews)
+      .where(eq(productViews.productId, productId));
+
+    // Get daily views for last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dailyViews = await db
+      .select({
+        date: sql<string>`date(${productViews.viewedAt})::text`,
+        views: sql<number>`count(*)::int`,
+      })
+      .from(productViews)
+      .where(and(
+        eq(productViews.productId, productId),
+        gte(productViews.viewedAt, thirtyDaysAgo)
+      ))
+      .groupBy(sql`date(${productViews.viewedAt})`)
+      .orderBy(sql`date(${productViews.viewedAt})`);
+
+    return {
+      totalViews: totalViewsResult?.totalViews || 0,
+      dailyViews,
+    };
+  }
+
+  // Price history operations
+  async createPriceHistory(history: InsertPriceHistory): Promise<PriceHistory> {
+    const [newHistory] = await db
+      .insert(priceHistory)
+      .values(history)
+      .returning();
+    return newHistory;
+  }
+
+  async getProductPriceHistory(productId: string): Promise<PriceHistory[]> {
+    return await db
+      .select()
+      .from(priceHistory)
+      .where(eq(priceHistory.productId, productId))
+      .orderBy(desc(priceHistory.changedAt))
+      .limit(50);
   }
 }
 
