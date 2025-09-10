@@ -232,7 +232,7 @@ export default function ProductDetails() {
             <div className="p-4">
               <div className="flex items-start justify-between mb-2">
                 <Badge variant="outline" className="mb-2">
-                  {product.category.name}
+                  {product.category?.name || 'N/A'}
                 </Badge>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Star className="h-4 w-4 text-accent mr-1 fill-current" />
