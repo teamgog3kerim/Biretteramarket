@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,9 +17,11 @@ import {
   Target,
   Users,
   Star,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from "lucide-react";
 import { Link } from "wouter";
+import AddProductModal from "@/components/add-product-modal";
 import type { Product, User as UserType, Category, Transaction, MarketReport } from "@shared/schema";
 
 type ProductWithRelations = Product & { seller: UserType; category: Category };
@@ -37,6 +39,7 @@ interface SellerAnalytics {
 export default function SellerDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
 
   // Redirect if not a seller
   useEffect(() => {
@@ -125,16 +128,28 @@ export default function SellerDashboard() {
     <div className="pb-20">
       {/* Header */}
       <div className="bg-primary p-4 text-primary-foreground">
-        <div className="flex items-center mb-4">
-          <Link href="/profile">
-            <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/20 mr-2 p-2">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">Seller Dashboard</h1>
-            <p className="text-sm opacity-90">Your business insights and analytics</p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Link href="/profile">
+              <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/20 mr-2 p-2">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold">Seller Dashboard</h1>
+              <p className="text-sm opacity-90">Your business insights and analytics</p>
+            </div>
           </div>
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={() => setShowAddProductModal(true)}
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+            data-testid="button-add-product"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
         </div>
       </div>
 
@@ -357,6 +372,12 @@ export default function SellerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Product Modal */}
+      <AddProductModal 
+        open={showAddProductModal} 
+        onOpenChange={setShowAddProductModal} 
+      />
     </div>
   );
 }
