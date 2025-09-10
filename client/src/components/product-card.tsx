@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { cn } from "@/lib/utils";
 import { Heart, Star, ShoppingCart } from "lucide-react";
+import { Link } from "wouter";
 
 interface ProductCardProps {
   product: {
@@ -77,40 +78,42 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
   });
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      <div className="relative">
-        {product.imageUrl ? (
-          <img 
-            src={product.imageUrl} 
-            alt={product.name}
-            className={cn(
-              "w-full object-cover",
+    <Link href={`/product/${product.id}`}>
+      <Card className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+        <div className="relative">
+          {product.imageUrl ? (
+            <img 
+              src={product.imageUrl} 
+              alt={product.name}
+              className={cn(
+                "w-full object-cover",
+                compact ? "h-20" : "h-24"
+              )}
+            />
+          ) : (
+            <div className={cn(
+              "w-full bg-muted flex items-center justify-center",
               compact ? "h-20" : "h-24"
-            )}
-          />
-        ) : (
-          <div className={cn(
-            "w-full bg-muted flex items-center justify-center",
-            compact ? "h-20" : "h-24"
-          )}>
-            <i className="fas fa-box text-muted-foreground text-2xl"></i>
-          </div>
-        )}
-        
-        <Button
-          size="sm"
-          variant="secondary"
-          className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white"
-          onClick={(e) => {
-            e.preventDefault();
-            addToFavorites.mutate();
-          }}
-          disabled={addToFavorites.isPending}
-          data-testid={`button-favorite-${product.id}`}
-        >
-          <Heart className="h-4 w-4" />
-        </Button>
-      </div>
+            )}>
+              <i className="fas fa-box text-muted-foreground text-2xl"></i>
+            </div>
+          )}
+          
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addToFavorites.mutate();
+            }}
+            disabled={addToFavorites.isPending}
+            data-testid={`button-favorite-${product.id}`}
+          >
+            <Heart className="h-4 w-4" />
+          </Button>
+        </div>
 
       <CardContent className={cn("p-1.5 sm:p-2 md:p-3", compact && "p-1.5")}>
         <div className="mb-1">
@@ -158,6 +161,10 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
             size="sm"
             variant="outline"
             className="ml-1 sm:ml-2 h-6 w-6 sm:h-7 sm:w-7 p-0 flex-shrink-0"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             data-testid={`button-add-cart-${product.id}`}
           >
             <ShoppingCart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
@@ -165,5 +172,6 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 }

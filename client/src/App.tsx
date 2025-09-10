@@ -10,6 +10,7 @@ import Categories from "@/pages/categories";
 import Calculators from "@/pages/calculators";
 import Profile from "@/pages/profile";
 import SellerDashboard from "@/pages/seller-dashboard";
+import ProductDetails from "@/pages/product-details";
 import BottomNavigation from "@/components/bottom-navigation";
 import NotFound from "@/pages/not-found";
 
@@ -36,6 +37,7 @@ function Router() {
             <Route path="/calculators" component={Calculators} />
             <Route path="/profile" component={Profile} />
             <Route path="/seller-dashboard" component={SellerDashboard} />
+            <Route path="/product/:id" component={ProductDetails} />
           </>
         )}
         <Route component={NotFound} />
