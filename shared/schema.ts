@@ -56,7 +56,9 @@ export const products = pgTable("products", {
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   unit: varchar("unit").default("ton"), // 'ton', 'kg', 'piece'
+  quantityAvailable: decimal("quantity_available", { precision: 10, scale: 2 }).default("0"),
   imageUrl: varchar("image_url"),
+  imageUrls: jsonb("image_urls"), // Array of image URLs (max 3)
   featured: boolean("featured").default(false),
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

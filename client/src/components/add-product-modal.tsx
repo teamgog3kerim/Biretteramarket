@@ -11,6 +11,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { X, Upload, Image } from "lucide-react";
 import { z } from "zod";
 import type { Category } from "@shared/schema";
 
@@ -23,7 +24,10 @@ const addProductSchema = z.object({
     return !isNaN(num) && num > 0;
   }, "Price must be a valid positive number"),
   unit: z.string().min(1, "Unit is required").max(50, "Unit is too long"),
-  imageUrl: z.string().url("Please enter a valid image URL").optional().or(z.literal("")),
+  quantityAvailable: z.string().min(1, "Quantity is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, "Quantity must be a valid non-negative number"),
   categoryId: z.string().min(1, "Category is required"),
 });
 
@@ -37,6 +41,7 @@ interface AddProductModalProps {
 export default function AddProductModal({ open, onOpenChange }: AddProductModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -49,17 +54,26 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       description: "",
       price: "",
       unit: "",
-      imageUrl: "",
+      quantityAvailable: "",
       categoryId: "",
     },
   });
 
   const createProduct = useMutation({
     mutationFn: async (productData: AddProductFormData) => {
+      // Convert images to base64 for now (in a real app, you'd upload to a file storage service)
+      const imageUrls: string[] = [];
+      for (const file of selectedImages) {
+        const base64 = await convertToBase64(file);
+        imageUrls.push(base64);
+      }
+      
       const payload = {
         ...productData,
         price: productData.price, // Keep as string for backend
-        imageUrl: productData.imageUrl || undefined,
+        quantityAvailable: productData.quantityAvailable,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Backwards compatibility
       };
       await apiRequest("POST", "/api/products", payload);
     },
@@ -74,6 +88,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       });
       
       form.reset();
+      setSelectedImages([]);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -96,6 +111,57 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       });
     },
   });
+
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    if (files.length + selectedImages.length > 3) {
+      toast({
+        title: "Too Many Images",
+        description: "You can upload a maximum of 3 images.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid File Type",
+          description: `${file.name} is not an image file.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is larger than 5MB.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      return true;
+    });
+
+    setSelectedImages(prev => [...prev, ...validFiles]);
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const onSubmit = (data: AddProductFormData) => {
     createProduct.mutate(data);
@@ -154,7 +220,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               )}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="price"
@@ -173,6 +239,30 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                     </FormControl>
                     <FormDescription>
                       Price in Ethiopian Birr
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="quantityAvailable"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity Available *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        {...field}
+                        data-testid="input-product-quantity"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Available stock quantity
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -249,27 +339,64 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="imageUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Image URL (Optional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="url"
-                      placeholder="https://example.com/product-image.jpg"
-                      {...field}
-                      data-testid="input-product-image"
+            <div>
+              <FormLabel>Product Images (Optional - Max 3)</FormLabel>
+              <div className="mt-2">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-4 text-gray-500" />
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG, JPEG (MAX. 5MB each)</p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      data-testid="input-product-images"
                     />
-                  </FormControl>
-                  <FormDescription>
-                    Provide a URL to your product image. Must be a valid web URL.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  </label>
+                </div>
+                
+                {selectedImages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Selected Images ({selectedImages.length}/3):</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedImages.map((file, index) => (
+                        <div key={index} className="relative">
+                          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                            <Image className="h-8 w-8 text-muted-foreground" />
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Preview ${index + 1}`}
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <p className="text-xs text-center mt-1 truncate">{file.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <FormDescription className="mt-2">
+                  Upload up to 3 images of your product. Each image must be under 5MB.
+                </FormDescription>
+              </div>
+            </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button
