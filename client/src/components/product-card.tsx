@@ -112,23 +112,23 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         </Button>
       </div>
 
-      <CardContent className={cn("p-2 sm:p-3", compact && "p-2")}>
+      <CardContent className={cn("p-1.5 sm:p-2 md:p-3", compact && "p-1.5")}>
         <div className="mb-1">
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs leading-none">
             {product.category.name}
           </Badge>
         </div>
         
         <h3 className={cn(
-          "font-medium mb-1 line-clamp-1",
-          compact ? "text-xs sm:text-sm" : "text-sm"
+          "font-medium mb-1 line-clamp-1 leading-tight",
+          compact ? "text-xs sm:text-sm" : "text-xs sm:text-sm md:text-base"
         )} data-testid={`text-product-name-${product.id}`}>
           {product.name}
         </h3>
         
         {product.description && (
           <p className={cn(
-            "text-muted-foreground mb-2 line-clamp-2",
+            "text-muted-foreground mb-2 line-clamp-2 leading-tight",
             compact ? "text-xs" : "text-xs sm:text-sm"
           )}>
             {product.description}
@@ -137,30 +137,30 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1 min-w-0">
-            <span className="text-primary font-bold text-xs sm:text-sm" data-testid={`text-product-price-${product.id}`}>
+            <span className="text-primary font-bold text-xs sm:text-sm md:text-base" data-testid={`text-product-price-${product.id}`}>
               {formattedPrice}
               {product.unit && <span className="text-xs text-muted-foreground">/{product.unit}</span>}
             </span>
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
             <Star className="h-3 w-3 text-accent mr-1 fill-current" />
-            <span className="hidden sm:inline">4.8</span>
+            <span className="hidden sm:inline text-xs">4.8</span>
           </div>
         </div>
         
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground truncate" data-testid={`text-seller-name-${product.id}`}>
+            <p className="text-xs text-muted-foreground truncate leading-tight" data-testid={`text-seller-name-${product.id}`}>
               by {sellerName}
             </p>
           </div>
           <Button
             size="sm"
             variant="outline"
-            className="ml-2 h-6 w-6 sm:h-7 sm:w-7 p-0"
+            className="ml-1 sm:ml-2 h-6 w-6 sm:h-7 sm:w-7 p-0 flex-shrink-0"
             data-testid={`button-add-cart-${product.id}`}
           >
-            <ShoppingCart className="h-3 w-3" />
+            <ShoppingCart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
           </Button>
         </div>
       </CardContent>

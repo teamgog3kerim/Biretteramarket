@@ -46,9 +46,9 @@ export default function Categories() {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-2 sm:p-4">
         {/* Category Filters */}
-        <div className="flex space-x-2 sm:space-x-3 mb-4 overflow-x-auto hide-scrollbar">
+        <div className="flex space-x-1 sm:space-x-2 md:space-x-3 mb-3 sm:mb-4 overflow-x-auto hide-scrollbar">
           {categoryFilters.map((category) => (
             <Button
               key={category.id || "all"}
@@ -64,12 +64,12 @@ export default function Categories() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           {products.map((product: any) => (
             <ProductCard key={product.id} product={product} />
           ))}
           {products.length === 0 && (
-            <div className="col-span-2 sm:col-span-3 lg:col-span-4 xl:col-span-5 bg-muted rounded-lg p-4 sm:p-6 text-center">
+            <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-6 bg-muted rounded-lg p-3 sm:p-4 md:p-6 text-center">
               <p className="text-muted-foreground text-sm sm:text-base">
                 {searchQuery || selectedCategory 
                   ? "No products found matching your criteria" 

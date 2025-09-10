@@ -87,8 +87,8 @@ export default function Home() {
       </div>
 
       {/* Quick Categories */}
-      <div className="px-4 py-4">
-        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3">
+      <div className="px-2 sm:px-4 py-3 sm:py-4">
+        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 gap-1 sm:gap-2 md:gap-3">
           {quickCategories.map((category) => {
             const Icon = category.icon;
             return (
@@ -107,29 +107,29 @@ export default function Home() {
       </div>
 
       {/* Featured Products Carousel */}
-      <div className="px-4 mb-6">
+      <div className="px-2 sm:px-4 mb-4 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg sm:text-xl font-bold">Featured Products</h2>
-          <Button variant="link" className="text-primary p-0 text-sm sm:text-base" data-testid="link-view-all-featured">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold">Featured Products</h2>
+          <Button variant="link" className="text-primary p-0 text-xs sm:text-sm" data-testid="link-view-all-featured">
             View All
           </Button>
         </div>
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto hide-scrollbar">
+        <div className="flex space-x-2 sm:space-x-3 md:space-x-4 overflow-x-auto hide-scrollbar">
           {featuredProducts.map((product: any) => (
-            <div key={product.id} className="flex-none w-44 sm:w-48 md:w-52">
+            <div key={product.id} className="flex-none w-36 sm:w-44 md:w-48 lg:w-52">
               <ProductCard product={product} compact />
             </div>
           ))}
           {featuredProducts.length === 0 && (
-            <div className="flex-none w-44 sm:w-48 bg-muted rounded-lg p-4 sm:p-6 text-center">
-              <p className="text-muted-foreground text-sm">No featured products available</p>
+            <div className="flex-none w-36 sm:w-44 md:w-48 bg-muted rounded-lg p-3 sm:p-4 md:p-6 text-center">
+              <p className="text-muted-foreground text-xs sm:text-sm">No featured products available</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Top Sellers Section */}
-      <div className="px-4 mb-6">
+      <div className="px-2 sm:px-4 mb-4 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold">Top Sellers</h2>
           <Button variant="link" className="text-primary p-0" data-testid="link-view-all-sellers">
@@ -190,9 +190,9 @@ export default function Home() {
       </div>
 
       {/* Recent Products */}
-      <div className="px-4 mb-6">
-        <h2 className="text-lg sm:text-xl font-bold mb-3">Recent Products</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+      <div className="px-2 sm:px-4 mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3">Recent Products</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           {recentProducts.map((product: any) => (
             <ProductCard key={product.id} product={product} />
           ))}
