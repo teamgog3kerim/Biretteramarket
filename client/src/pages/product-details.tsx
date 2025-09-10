@@ -165,15 +165,16 @@ export default function ProductDetails() {
     }).format(num);
   };
 
-  const sellerName = product.seller.firstName && product.seller.lastName 
-    ? `${product.seller.firstName} ${product.seller.lastName}`
-    : product.seller.email?.split('@')[0] || 'Unknown Seller';
-
   const handleOrder = () => {
+    if (!product) return;
     const quantity = 1; // Default quantity, can be made configurable
     const totalAmount = parseFloat(product.price) * quantity;
     createTransaction.mutate({ quantity, totalAmount });
   };
+
+  const sellerName = product.seller.firstName && product.seller.lastName 
+    ? `${product.seller.firstName} ${product.seller.lastName}`
+    : product.seller.email?.split('@')[0] || 'Unknown Seller';
 
   return (
     <div className="pb-20">
