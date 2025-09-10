@@ -68,11 +68,12 @@ export default function ProductDetails() {
 
   const createTransaction = useMutation({
     mutationFn: async (orderData: { quantity: number; totalAmount: number }) => {
+      if (!product) throw new Error("Product not found");
       await apiRequest("POST", "/api/transactions", {
-        sellerId: product!.sellerId,
+        sellerId: product.sellerId,
         productId: id,
         quantity: orderData.quantity.toString(),
-        unitPrice: product!.price,
+        unitPrice: product.price,
         totalAmount: orderData.totalAmount.toString(),
         status: "pending",
       });
@@ -172,9 +173,9 @@ export default function ProductDetails() {
     createTransaction.mutate({ quantity, totalAmount });
   };
 
-  const sellerName = product.seller.firstName && product.seller.lastName 
+  const sellerName = product.seller?.firstName && product.seller?.lastName 
     ? `${product.seller.firstName} ${product.seller.lastName}`
-    : product.seller.email?.split('@')[0] || 'Unknown Seller';
+    : product.seller?.email?.split('@')[0] || 'Unknown Seller';
 
   return (
     <div className="pb-20">
@@ -292,7 +293,7 @@ export default function ProductDetails() {
             <h3 className="font-semibold mb-3">Seller Information</h3>
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center">
-                {product.seller.profileImageUrl ? (
+                {product.seller?.profileImageUrl ? (
                   <img 
                     src={product.seller.profileImageUrl} 
                     alt={sellerName}
@@ -338,7 +339,7 @@ export default function ProductDetails() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Category:</span>
-                <span>{product.category.name}</span>
+                <span>{product.category?.name || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Unit:</span>
