@@ -133,21 +133,12 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       return;
     }
 
-    // Validate file types and sizes
+    // Validate file types only
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
         toast({
           title: "Invalid File Type",
           description: `${file.name} is not an image file.`,
-          variant: "destructive",
-        });
-        return false;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({
-          title: "File Too Large",
-          description: `${file.name} is larger than 5MB.`,
           variant: "destructive",
         });
         return false;
@@ -349,7 +340,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                       <p className="mb-2 text-sm text-gray-500">
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
-                      <p className="text-xs text-gray-500">PNG, JPG, JPEG (MAX. 5MB each)</p>
+                      <p className="text-xs text-gray-500">PNG, JPG, JPEG (any size)</p>
                     </div>
                     <input
                       type="file"
@@ -393,7 +384,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                 )}
                 
                 <FormDescription className="mt-2">
-                  Upload up to 3 images of your product. Each image must be under 5MB.
+                  Upload up to 3 images of your product. Any file size is supported.
                 </FormDescription>
               </div>
             </div>
