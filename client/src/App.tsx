@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useTelegramBackButton } from "@/hooks/useTelegramBackButton";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Categories from "@/pages/categories";
@@ -18,6 +19,7 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const { isTelegram, isAuthenticating, authError, retry } = useTelegramAuth();
+  useTelegramBackButton();
 
   if (isLoading || (isTelegram && isAuthenticating && !isAuthenticated)) {
     return (

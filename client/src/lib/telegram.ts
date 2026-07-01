@@ -1,6 +1,22 @@
 // Lightweight helpers around the Telegram Mini App (WebApp) JS SDK.
 // The SDK is loaded via a script tag in index.html and attaches to window.Telegram.
 
+interface TelegramBackButton {
+  isVisible: boolean;
+  show: () => void;
+  hide: () => void;
+  onClick: (cb: () => void) => void;
+  offClick: (cb: () => void) => void;
+}
+
+interface TelegramHapticFeedback {
+  impactOccurred: (
+    style: "light" | "medium" | "heavy" | "rigid" | "soft",
+  ) => void;
+  notificationOccurred: (type: "error" | "success" | "warning") => void;
+  selectionChanged: () => void;
+}
+
 interface TelegramWebApp {
   initData: string;
   initDataUnsafe: Record<string, any>;
@@ -12,6 +28,8 @@ interface TelegramWebApp {
   setHeaderColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
   enableClosingConfirmation: () => void;
+  BackButton: TelegramBackButton;
+  HapticFeedback: TelegramHapticFeedback;
 }
 
 declare global {
@@ -57,4 +75,24 @@ export function initTelegramWebApp(): void {
 export function getTelegramInitData(): string | null {
   const wa = getTelegramWebApp();
   return wa?.initData || null;
+}
+
+type HapticImpact = "light" | "medium" | "heavy" | "rigid" | "soft";
+type HapticNotification = "error" | "success" | "warning";
+
+// Trigger native haptic feedback. No-ops outside Telegram or on older clients.
+export function hapticImpact(style: HapticImpact = "light"): void {
+  try {
+    getTelegramWebApp()?.HapticFeedback?.impactOccurred(style);
+  } catch {
+    /* not supported */
+  }
+}
+
+export function hapticNotification(type: HapticNotification): void {
+  try {
+    getTelegramWebApp()?.HapticFeedback?.notificationOccurred(type);
+  } catch {
+    /* not supported */
+  }
 }

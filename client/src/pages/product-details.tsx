@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { hapticNotification } from "@/lib/telegram";
 import { 
   ArrowLeft, 
   Heart, 
@@ -40,6 +41,7 @@ export default function ProductDetails() {
       await apiRequest("POST", "/api/favorites", { productId: id });
     },
     onSuccess: () => {
+      hapticNotification("success");
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
       toast({
         title: "Added to Favorites",
@@ -58,6 +60,7 @@ export default function ProductDetails() {
         }, 500);
         return;
       }
+      hapticNotification("error");
       toast({
         title: "Error",
         description: "Failed to add to favorites",
@@ -79,6 +82,7 @@ export default function ProductDetails() {
       });
     },
     onSuccess: () => {
+      hapticNotification("success");
       toast({
         title: "Order Placed",
         description: "Your order has been placed successfully. The seller will contact you soon.",
@@ -96,6 +100,7 @@ export default function ProductDetails() {
         }, 500);
         return;
       }
+      hapticNotification("error");
       toast({
         title: "Error",
         description: "Failed to place order. Please try again.",
