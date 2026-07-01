@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Landing() {
+interface LandingProps {
+  isTelegram?: boolean;
+  telegramError?: boolean;
+  onTelegramRetry?: () => void;
+}
+
+export default function Landing({ isTelegram = false, telegramError = false, onTelegramRetry }: LandingProps) {
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
@@ -66,17 +72,48 @@ export default function Landing() {
 
         {/* CTA */}
         <div className="text-center">
-          <Button 
-            onClick={handleLogin}
-            size="lg"
-            className="w-full text-lg font-semibold"
-            data-testid="button-login"
-          >
-            Get Started
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Start with a free 30-day trial. No commitment required.
-          </p>
+          {isTelegram && telegramError ? (
+            <>
+              <p className="text-sm font-medium text-destructive mb-3">
+                We couldn't sign you in with Telegram.
+              </p>
+              <Button
+                onClick={() => onTelegramRetry?.()}
+                size="lg"
+                className="w-full text-lg font-semibold"
+                data-testid="button-telegram-retry"
+              >
+                Try Again
+              </Button>
+              <p className="text-sm text-muted-foreground mt-4">
+                If this keeps happening, try reopening the app from your Telegram chat.
+              </p>
+            </>
+          ) : isTelegram ? (
+            <>
+              <div className="flex items-center justify-center space-x-3 py-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="text-sm font-medium">Signing you in with Telegram…</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Please wait while we set up your account.
+              </p>
+            </>
+          ) : (
+            <>
+              <Button 
+                onClick={handleLogin}
+                size="lg"
+                className="w-full text-lg font-semibold"
+                data-testid="button-login"
+              >
+                Get Started
+              </Button>
+              <p className="text-sm text-muted-foreground mt-4">
+                Start with a free 30-day trial. No commitment required.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

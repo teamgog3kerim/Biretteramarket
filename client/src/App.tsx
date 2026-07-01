@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Categories from "@/pages/categories";
@@ -16,8 +17,9 @@ import NotFound from "@/pages/not-found";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isTelegram, isAuthenticating, authError, retry } = useTelegramAuth();
 
-  if (isLoading) {
+  if (isLoading || (isTelegram && isAuthenticating && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -29,7 +31,7 @@ function Router() {
     <div className="max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto bg-background min-h-screen relative">
       <Switch>
         {!isAuthenticated ? (
-          <Route path="/" component={Landing} />
+          <Route path="/" component={() => <Landing isTelegram={isTelegram} telegramError={authError} onTelegramRetry={retry} />} />
         ) : (
           <>
             <Route path="/" component={Home} />

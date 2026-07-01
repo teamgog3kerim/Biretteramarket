@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupTelegramAuth } from "./telegramAuth";
 import { initializeMarketReporting } from "./marketReports";
 import { initializeSampleData } from "./seedTransactions";
 import { 
@@ -20,6 +21,7 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+  setupTelegramAuth(app);
 
   // Initialize default categories
   const initCategories = async () => {
