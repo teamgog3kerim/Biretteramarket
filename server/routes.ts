@@ -15,6 +15,7 @@ import {
   insertTransactionSchema,
   insertProductViewSchema,
   insertPriceHistorySchema,
+  insertPaymentMethodSchema,
   updateProfileSchema
 } from "@shared/schema";
 import { z } from "zod";
@@ -360,6 +361,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch buyer transactions" });
+    }
+  });
+
+  // Payment method routes
+  app.get('/api/payment-methods', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const methods = await storage.getPaymentMethods(userId);
+      res.json(methods);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  app.post('/api/payment-methods', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertPaymentMethodSchema.parse(req.body);
+      const method = await storage.createPaymentMethod(userId, validatedData);
+      res.status(201).json(method);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payment method data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create payment method" });
+    }
+  });
+
+  app.patch('/api/payment-methods/:id/default', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updated = await storage.setDefaultPaymentMethod(req.params.id, userId);
+      if (!updated) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      res.json({ message: "Default payment method updated" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update default payment method" });
+    }
+  });
+
+  app.delete('/api/payment-methods/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.deletePaymentMethod(req.params.id, userId);
+      res.json({ message: "Payment method deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete payment method" });
     }
   });
 

@@ -9,6 +9,7 @@ import {
   transactions,
   productViews,
   priceHistory,
+  paymentMethods,
   type User,
   type UpsertUser,
   type UpdateProfile,
@@ -30,6 +31,8 @@ import {
   type InsertProductView,
   type PriceHistory,
   type InsertPriceHistory,
+  type PaymentMethod,
+  type InsertPaymentMethod,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, like, or, sql, gte, lte, count } from "drizzle-orm";
@@ -92,6 +95,12 @@ export interface IStorage {
     monthlySales: { month: string; sales: number; revenue: string }[];
   }>;
   
+  // Payment method operations
+  getPaymentMethods(userId: string): Promise<PaymentMethod[]>;
+  createPaymentMethod(userId: string, method: InsertPaymentMethod): Promise<PaymentMethod>;
+  deletePaymentMethod(id: string, userId: string): Promise<void>;
+  setDefaultPaymentMethod(id: string, userId: string): Promise<boolean>;
+
   // Product view operations
   createProductView(view: InsertProductView): Promise<ProductView>;
   getProductAnalytics(productId: string): Promise<{
@@ -516,6 +525,80 @@ export class DatabaseStorage implements IStorage {
       seller: row.seller!,
       product: row.product!,
     }));
+  }
+
+  // Payment method operations
+  async getPaymentMethods(userId: string): Promise<PaymentMethod[]> {
+    return await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, userId))
+      .orderBy(desc(paymentMethods.isDefault), desc(paymentMethods.createdAt));
+  }
+
+  async createPaymentMethod(userId: string, method: InsertPaymentMethod): Promise<PaymentMethod> {
+    const existing = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, userId));
+
+    // First method becomes default automatically
+    const shouldBeDefault = method.isDefault || existing.length === 0;
+
+    if (shouldBeDefault) {
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: false })
+        .where(eq(paymentMethods.userId, userId));
+    }
+
+    const [created] = await db
+      .insert(paymentMethods)
+      .values({ ...method, userId, isDefault: shouldBeDefault })
+      .returning();
+    return created;
+  }
+
+  async deletePaymentMethod(id: string, userId: string): Promise<void> {
+    const [deleted] = await db
+      .delete(paymentMethods)
+      .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)))
+      .returning();
+
+    // If the deleted method was the default, promote the most recent remaining one
+    if (deleted?.isDefault) {
+      const [next] = await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.userId, userId))
+        .orderBy(desc(paymentMethods.createdAt))
+        .limit(1);
+      if (next) {
+        await db
+          .update(paymentMethods)
+          .set({ isDefault: true })
+          .where(eq(paymentMethods.id, next.id));
+      }
+    }
+  }
+
+  async setDefaultPaymentMethod(id: string, userId: string): Promise<boolean> {
+    // Verify ownership first so we never clear defaults for an invalid id
+    const [target] = await db
+      .select()
+      .from(paymentMethods)
+      .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)));
+    if (!target) return false;
+
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: false })
+      .where(eq(paymentMethods.userId, userId));
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: true })
+      .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)));
+    return true;
   }
 
   async getSellerAnalytics(sellerId: string): Promise<{

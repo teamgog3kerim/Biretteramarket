@@ -371,35 +371,37 @@ export default function Profile() {
           </Link>
 
           {/* Payment Methods */}
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-3 h-auto"
-            onClick={showComingSoon}
-            data-testid="button-payment-methods"
-          >
-            <div className="flex items-center space-x-3">
-              <CreditCard className="h-5 w-5 text-secondary" />
-              <span className="flex-1 text-left">Payment Methods</span>
-            </div>
-            <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
-          </Button>
+          <Link href="/payment-methods">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between p-3 h-auto"
+              data-testid="button-payment-methods"
+            >
+              <div className="flex items-center space-x-3">
+                <CreditCard className="h-5 w-5 text-secondary" />
+                <span className="flex-1 text-left">Payment Methods</span>
+              </div>
+              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+            </Button>
+          </Link>
 
           {/* Ethiopian Bank Integration */}
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-3 h-auto"
-            onClick={showComingSoon}
-            data-testid="button-bank-wallets"
-          >
-            <div className="flex items-center space-x-3">
-              <Building className="h-5 w-5 text-secondary" />
-              <span className="flex-1 text-left">Bank Wallets</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-accent">CBE • Dashen • Awash</span>
-              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
-            </div>
-          </Button>
+          <Link href="/payment-methods">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between p-3 h-auto"
+              data-testid="button-bank-wallets"
+            >
+              <div className="flex items-center space-x-3">
+                <Building className="h-5 w-5 text-secondary" />
+                <span className="flex-1 text-left">Bank Wallets</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-accent">CBE • Dashen • Awash</span>
+                <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+              </div>
+            </Button>
+          </Link>
 
           {/* Settings */}
           <Link href="/settings">

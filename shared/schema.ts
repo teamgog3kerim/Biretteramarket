@@ -146,6 +146,18 @@ export const priceHistory = pgTable("price_history", {
   changedAt: timestamp("changed_at").defaultNow(),
 });
 
+// Payment methods (bank accounts & mobile wallets) owned by a user
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: varchar("type").notNull(), // 'bank', 'mobile_wallet'
+  provider: varchar("provider").notNull(), // 'CBE', 'Dashen', 'Awash', 'telebirr', etc.
+  accountName: varchar("account_name").notNull(),
+  accountNumber: varchar("account_number").notNull(),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const userRelations = relations(users, ({ many, one }) => ({
   products: many(products),
@@ -155,6 +167,14 @@ export const userRelations = relations(users, ({ many, one }) => ({
   salesTransactions: many(transactions, { relationName: "sellerTransactions" }),
   purchaseTransactions: many(transactions, { relationName: "buyerTransactions" }),
   productViews: many(productViews),
+  paymentMethods: many(paymentMethods),
+}));
+
+export const paymentMethodRelations = relations(paymentMethods, ({ one }) => ({
+  user: one(users, {
+    fields: [paymentMethods.userId],
+    references: [users.id],
+  }),
 }));
 
 export const categoryRelations = relations(categories, ({ many }) => ({
@@ -308,6 +328,12 @@ export const insertPriceHistorySchema = createInsertSchema(priceHistory).omit({
   changedAt: true,
 });
 
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -339,3 +365,6 @@ export type InsertProductView = z.infer<typeof insertProductViewSchema>;
 
 export type PriceHistory = typeof priceHistory.$inferSelect;
 export type InsertPriceHistory = z.infer<typeof insertPriceHistorySchema>;
+
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;

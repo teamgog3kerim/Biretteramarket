@@ -15,6 +15,7 @@ import Profile from "@/pages/profile";
 import Orders from "@/pages/orders";
 import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
+import PaymentMethods from "@/pages/payment-methods";
 import SellerDashboard from "@/pages/seller-dashboard";
 import ProductDetails from "@/pages/product-details";
 import BottomNavigation from "@/components/bottom-navigation";
@@ -47,6 +48,7 @@ function Router() {
             <Route path="/orders" component={Orders} />
             <Route path="/favorites" component={Favorites} />
             <Route path="/settings" component={Settings} />
+            <Route path="/payment-methods" component={PaymentMethods} />
             <Route path="/seller-dashboard" component={SellerDashboard} />
             <Route path="/product/:id" component={ProductDetails} />
           </>
