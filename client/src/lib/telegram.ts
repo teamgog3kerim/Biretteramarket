@@ -17,6 +17,21 @@ interface TelegramHapticFeedback {
   selectionChanged: () => void;
 }
 
+interface TelegramMainButton {
+  text: string;
+  isVisible: boolean;
+  isActive: boolean;
+  setText: (text: string) => void;
+  show: () => void;
+  hide: () => void;
+  enable: () => void;
+  disable: () => void;
+  showProgress: (leaveActive?: boolean) => void;
+  hideProgress: () => void;
+  onClick: (cb: () => void) => void;
+  offClick: (cb: () => void) => void;
+}
+
 interface TelegramWebApp {
   initData: string;
   initDataUnsafe: Record<string, any>;
@@ -28,7 +43,9 @@ interface TelegramWebApp {
   setHeaderColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
   enableClosingConfirmation: () => void;
+  openTelegramLink: (url: string) => void;
   BackButton: TelegramBackButton;
+  MainButton: TelegramMainButton;
   HapticFeedback: TelegramHapticFeedback;
 }
 
@@ -94,5 +111,19 @@ export function hapticNotification(type: HapticNotification): void {
     getTelegramWebApp()?.HapticFeedback?.notificationOccurred(type);
   } catch {
     /* not supported */
+  }
+}
+
+// Share a link into a Telegram chat. Inside Telegram this opens the native
+// share sheet; on the web it falls back to opening the share URL in a new tab.
+export function shareToTelegram(url: string, text: string): void {
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(
+    url,
+  )}&text=${encodeURIComponent(text)}`;
+  const wa = getTelegramWebApp();
+  if (wa?.openTelegramLink) {
+    wa.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, "_blank");
   }
 }

@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { hapticNotification } from "@/lib/telegram";
+import { hapticNotification, hapticImpact, shareToTelegram, isTelegramWebApp } from "@/lib/telegram";
+import { useTelegramMainButton } from "@/hooks/useTelegramMainButton";
 import { 
   ArrowLeft, 
   Heart, 
@@ -109,6 +110,38 @@ export default function ProductDetails() {
     },
   });
 
+  const isTelegram = isTelegramWebApp();
+
+  const placeOrder = () => {
+    if (!product) return;
+    hapticImpact("medium");
+    const quantity = 1;
+    const totalAmount = parseFloat(product.price) * quantity;
+    createTransaction.mutate({ quantity, totalAmount });
+  };
+
+  const orderButtonText = product
+    ? `Order Now • ${new Intl.NumberFormat("en-ET", {
+        style: "currency",
+        currency: "ETB",
+        maximumFractionDigits: 0,
+      }).format(parseFloat(product.price))}`
+    : "Order Now";
+
+  useTelegramMainButton({
+    text: orderButtonText,
+    onClick: placeOrder,
+    visible: isTelegram && !!product && !isLoading && !error,
+    progress: createTransaction.isPending,
+  });
+
+  const handleShare = () => {
+    if (!product) return;
+    hapticImpact("light");
+    const url = `${window.location.origin}/product/${id}`;
+    shareToTelegram(url, `Check out ${product.name} on Biret Tera`);
+  };
+
   if (isLoading) {
     return (
       <div className="pb-20">
@@ -171,13 +204,6 @@ export default function ProductDetails() {
     }).format(num);
   };
 
-  const handleOrder = () => {
-    if (!product) return;
-    const quantity = 1; // Default quantity, can be made configurable
-    const totalAmount = parseFloat(product.price) * quantity;
-    createTransaction.mutate({ quantity, totalAmount });
-  };
-
   const sellerName = product.seller?.firstName && product.seller?.lastName 
     ? `${product.seller.firstName} ${product.seller.lastName}`
     : product.seller?.email?.split('@')[0] || 'Unknown Seller';
@@ -200,6 +226,7 @@ export default function ProductDetails() {
               variant="ghost" 
               size="sm" 
               className="text-primary-foreground hover:bg-primary-foreground/20 p-2"
+              onClick={handleShare}
               data-testid="button-share"
             >
               <Share2 className="h-4 w-4" />
@@ -363,7 +390,8 @@ export default function ProductDetails() {
         </Card>
       </div>
 
-      {/* Fixed Bottom Action Bar */}
+      {/* Fixed Bottom Action Bar (hidden inside Telegram — native Main Button is used instead) */}
+      {!isTelegram && (
       <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl bg-background border-t border-border p-4">
         <div className="flex space-x-3">
           <Button 
@@ -380,7 +408,7 @@ export default function ProductDetails() {
           <Button 
             size="lg" 
             className="flex-1"
-            onClick={handleOrder}
+            onClick={placeOrder}
             disabled={createTransaction.isPending}
             data-testid="button-order-now"
           >
@@ -389,6 +417,7 @@ export default function ProductDetails() {
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }
