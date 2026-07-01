@@ -14,7 +14,8 @@ import {
   insertMarketReportSchema,
   insertTransactionSchema,
   insertProductViewSchema,
-  insertPriceHistorySchema
+  insertPriceHistorySchema,
+  updateProfileSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -322,6 +323,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user type" });
+    }
+  });
+
+  // Profile update route
+  app.patch('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = updateProfileSchema.parse(req.body);
+
+      // Business name only applies to sellers
+      const currentUser = await storage.getUser(userId);
+      if (currentUser?.userType !== "seller") {
+        delete validatedData.businessName;
+      }
+
+      const updatedUser = await storage.updateUserProfile(userId, validatedData);
+      res.json(updatedUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid profile data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Buyer transactions (purchase history)
+  app.get('/api/buyer/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { limit } = req.query;
+      const transactions = await storage.getBuyerTransactions(
+        userId,
+        limit ? parseInt(limit as string) : undefined
+      );
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch buyer transactions" });
     }
   });
 

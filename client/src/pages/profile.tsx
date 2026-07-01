@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import SubscriptionModal from "@/components/subscription-modal";
+import EditProfileModal from "@/components/edit-profile-modal";
 import { useState, useEffect } from "react";
 import { 
   User, 
@@ -34,6 +35,7 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const { data: userProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/seller/products"],
@@ -92,6 +94,13 @@ export default function Profile() {
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
+  };
+
+  const showComingSoon = () => {
+    toast({
+      title: "Coming soon",
+      description: "This feature is not available yet.",
+    });
   };
 
   const getSubscriptionStatus = () => {
@@ -158,6 +167,21 @@ export default function Profile() {
                 <p className="text-sm text-muted-foreground" data-testid="text-user-email">
                   {user?.email || "No email"}
                 </p>
+                {user?.userType === 'seller' && user?.businessName && (
+                  <p className="text-sm font-medium" data-testid="text-business-name">
+                    {user.businessName}
+                  </p>
+                )}
+                {user?.phone && (
+                  <p className="text-xs text-muted-foreground" data-testid="text-user-phone">
+                    {user.phone}
+                  </p>
+                )}
+                {user?.location && (
+                  <p className="text-xs text-muted-foreground" data-testid="text-user-location">
+                    {user.location}
+                  </p>
+                )}
                 <div className="flex items-center mt-1 space-x-2">
                   <Badge variant={user?.userType === 'seller' ? 'default' : 'secondary'}>
                     {user?.userType === 'seller' ? 'Seller' : 'Buyer'}
@@ -167,7 +191,12 @@ export default function Profile() {
                   </span>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" data-testid="button-edit-profile">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowEditProfile(true)}
+                data-testid="button-edit-profile"
+              >
                 <Edit className="h-4 w-4" />
               </Button>
             </div>
@@ -286,59 +315,66 @@ export default function Profile() {
         <div className="space-y-1">
           {/* My Products (Sellers only) */}
           {user?.userType === 'seller' && (
+            <Link href="/seller-dashboard">
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-between p-3 h-auto"
+                data-testid="button-my-products"
+              >
+                <div className="flex items-center space-x-3">
+                  <Package className="h-5 w-5 text-secondary" />
+                  <span className="flex-1 text-left">My Products</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="secondary" data-testid="text-product-count">
+                    {userProducts.length}
+                  </Badge>
+                  <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+                </div>
+              </Button>
+            </Link>
+          )}
+
+          {/* Orders/Purchases */}
+          <Link href="/orders">
             <Button
               variant="ghost"
               className="w-full flex items-center justify-between p-3 h-auto"
-              data-testid="button-my-products"
+              data-testid="button-my-orders"
             >
               <div className="flex items-center space-x-3">
-                <Package className="h-5 w-5 text-secondary" />
-                <span className="flex-1 text-left">My Products</span>
+                <ShoppingCart className="h-5 w-5 text-secondary" />
+                <span className="flex-1 text-left">My Orders</span>
+              </div>
+              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+            </Button>
+          </Link>
+
+          {/* Favorites */}
+          <Link href="/favorites">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between p-3 h-auto"
+              data-testid="button-favorites"
+            >
+              <div className="flex items-center space-x-3">
+                <Heart className="h-5 w-5 text-secondary" />
+                <span className="flex-1 text-left">Favorites</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Badge variant="secondary" data-testid="text-product-count">
-                  {userProducts.length}
+                <Badge variant="outline" data-testid="text-favorites-count">
+                  {favorites.length}
                 </Badge>
                 <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
               </div>
             </Button>
-          )}
-
-          {/* Orders/Purchases */}
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-3 h-auto"
-            data-testid="button-my-orders"
-          >
-            <div className="flex items-center space-x-3">
-              <ShoppingCart className="h-5 w-5 text-secondary" />
-              <span className="flex-1 text-left">My Orders</span>
-            </div>
-            <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
-          </Button>
-
-          {/* Favorites */}
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-3 h-auto"
-            data-testid="button-favorites"
-          >
-            <div className="flex items-center space-x-3">
-              <Heart className="h-5 w-5 text-secondary" />
-              <span className="flex-1 text-left">Favorites</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" data-testid="text-favorites-count">
-                {favorites.length}
-              </Badge>
-              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
-            </div>
-          </Button>
+          </Link>
 
           {/* Payment Methods */}
           <Button
             variant="ghost"
             className="w-full flex items-center justify-between p-3 h-auto"
+            onClick={showComingSoon}
             data-testid="button-payment-methods"
           >
             <div className="flex items-center space-x-3">
@@ -352,6 +388,7 @@ export default function Profile() {
           <Button
             variant="ghost"
             className="w-full flex items-center justify-between p-3 h-auto"
+            onClick={showComingSoon}
             data-testid="button-bank-wallets"
           >
             <div className="flex items-center space-x-3">
@@ -365,22 +402,25 @@ export default function Profile() {
           </Button>
 
           {/* Settings */}
-          <Button
-            variant="ghost"
-            className="w-full flex items-center justify-between p-3 h-auto"
-            data-testid="button-settings"
-          >
-            <div className="flex items-center space-x-3">
-              <Settings className="h-5 w-5 text-secondary" />
-              <span className="flex-1 text-left">Settings</span>
-            </div>
-            <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
-          </Button>
+          <Link href="/settings">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between p-3 h-auto"
+              data-testid="button-settings"
+            >
+              <div className="flex items-center space-x-3">
+                <Settings className="h-5 w-5 text-secondary" />
+                <span className="flex-1 text-left">Settings</span>
+              </div>
+              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+            </Button>
+          </Link>
 
           {/* Help & Support */}
           <Button
             variant="ghost"
             className="w-full flex items-center justify-between p-3 h-auto"
+            onClick={showComingSoon}
             data-testid="button-help-support"
           >
             <div className="flex items-center space-x-3">
@@ -391,6 +431,7 @@ export default function Profile() {
           </Button>
 
           {/* Language */}
+          <Link href="/settings">
           <Button
             variant="ghost"
             className="w-full flex items-center justify-between p-3 h-auto"
@@ -405,6 +446,7 @@ export default function Profile() {
               <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
             </div>
           </Button>
+          </Link>
 
           {/* Logout */}
           <Button
@@ -423,6 +465,14 @@ export default function Profile() {
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
       />
+
+      {user && (
+        <EditProfileModal
+          isOpen={showEditProfile}
+          onClose={() => setShowEditProfile(false)}
+          user={user}
+        />
+      )}
     </div>
   );
 }

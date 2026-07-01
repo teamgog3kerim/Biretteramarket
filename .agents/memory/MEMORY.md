@@ -1,0 +1,2 @@
+- [Dual auth provider](auth-dual-provider.md) — Telegram Mini App + Replit OIDC share one Passport/session; see file for conventions.
+- [Users table explicit select](users-table-explicit-select.md) — adding a `users` column breaks a hand-written select in storage; tsc fails until you add it to the top-sellers query too.

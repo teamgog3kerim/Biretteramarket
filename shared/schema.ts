@@ -34,6 +34,9 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  phone: varchar("phone"),
+  location: varchar("location"),
+  businessName: varchar("business_name"),
   userType: varchar("user_type").default("buyer"), // 'buyer', 'seller'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -247,6 +250,16 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
 });
+
+// Profile fields the user is allowed to edit themselves
+export const updateProfileSchema = z.object({
+  firstName: z.string().max(100).optional().nullable(),
+  lastName: z.string().max(100).optional().nullable(),
+  phone: z.string().max(30).optional().nullable(),
+  location: z.string().max(120).optional().nullable(),
+  businessName: z.string().max(120).optional().nullable(),
+});
+export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,

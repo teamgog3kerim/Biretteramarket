@@ -11,6 +11,7 @@ import {
   priceHistory,
   type User,
   type UpsertUser,
+  type UpdateProfile,
   type Product,
   type InsertProduct,
   type Category,
@@ -38,6 +39,7 @@ export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserProfile(id: string, profile: UpdateProfile): Promise<User>;
   
   // Category operations
   getCategories(): Promise<Category[]>;
@@ -81,6 +83,7 @@ export interface IStorage {
   // Transaction operations
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getSellerTransactions(sellerId: string, limit?: number): Promise<(Transaction & { buyer: User; product: Product })[]>;
+  getBuyerTransactions(buyerId: string, limit?: number): Promise<(Transaction & { seller: User; product: Product })[]>;
   getSellerAnalytics(sellerId: string): Promise<{
     totalSales: number;
     totalRevenue: string;
@@ -119,6 +122,15 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         },
       })
+      .returning();
+    return user;
+  }
+
+  async updateUserProfile(id: string, profile: UpdateProfile): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(users.id, id))
       .returning();
     return user;
   }
@@ -361,6 +373,9 @@ export class DatabaseStorage implements IStorage {
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
+        phone: users.phone,
+        location: users.location,
+        businessName: users.businessName,
         userType: users.userType,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
@@ -468,6 +483,37 @@ export class DatabaseStorage implements IStorage {
     return results.map(row => ({
       ...row,
       buyer: row.buyer!,
+      product: row.product!,
+    }));
+  }
+
+  async getBuyerTransactions(buyerId: string, limit = 50): Promise<(Transaction & { seller: User; product: Product })[]> {
+    const results = await db
+      .select({
+        id: transactions.id,
+        sellerId: transactions.sellerId,
+        buyerId: transactions.buyerId,
+        productId: transactions.productId,
+        quantity: transactions.quantity,
+        unitPrice: transactions.unitPrice,
+        totalAmount: transactions.totalAmount,
+        status: transactions.status,
+        transactionDate: transactions.transactionDate,
+        createdAt: transactions.createdAt,
+        updatedAt: transactions.updatedAt,
+        seller: users,
+        product: products,
+      })
+      .from(transactions)
+      .leftJoin(users, eq(transactions.sellerId, users.id))
+      .leftJoin(products, eq(transactions.productId, products.id))
+      .where(eq(transactions.buyerId, buyerId))
+      .orderBy(desc(transactions.transactionDate))
+      .limit(limit);
+
+    return results.map(row => ({
+      ...row,
+      seller: row.seller!,
       product: row.product!,
     }));
   }
