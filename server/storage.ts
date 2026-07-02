@@ -36,7 +36,7 @@ import {
   SELLER_TYPES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, like, or, sql, gte, lte, count, inArray, isNull } from "drizzle-orm";
+import { eq, desc, and, like, or, sql, gte, lte, lt, count, inArray, isNull, isNotNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -44,6 +44,10 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserProfile(id: string, profile: UpdateProfile): Promise<User>;
+  updateUserInterests(id: string, categoryIds: string[]): Promise<User>;
+  getUsersForMarketNotification(since: Date): Promise<User[]>;
+  claimMarketNotification(id: string, since: Date): Promise<boolean>;
+  clearMarketNotification(id: string): Promise<void>;
   
   // Category operations
   getCategories(): Promise<Category[]>;
@@ -197,6 +201,54 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async updateUserInterests(id: string, categoryIds: string[]): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ interestedCategoryIds: categoryIds, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getUsersForMarketNotification(since: Date): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(and(
+        like(users.id, 'telegram:%'),
+        eq(users.status, 'active'),
+        isNotNull(users.interestedCategoryIds),
+        or(
+          isNull(users.lastMarketNotifiedAt),
+          lt(users.lastMarketNotifiedAt, since),
+        ),
+      ));
+  }
+
+  // Atomically claims today's market notification so concurrent runs can't double-send.
+  async claimMarketNotification(id: string, since: Date): Promise<boolean> {
+    const rows = await db
+      .update(users)
+      .set({ lastMarketNotifiedAt: new Date() })
+      .where(and(
+        eq(users.id, id),
+        or(
+          isNull(users.lastMarketNotifiedAt),
+          lt(users.lastMarketNotifiedAt, since),
+        ),
+      ))
+      .returning({ id: users.id });
+    return rows.length > 0;
+  }
+
+  // Releases the claim after a failed send so the next hourly run retries.
+  async clearMarketNotification(id: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ lastMarketNotifiedAt: null })
+      .where(eq(users.id, id));
   }
 
   // Category operations
@@ -601,6 +653,8 @@ export class DatabaseStorage implements IStorage {
         telegramUsername: users.telegramUsername,
         isAdmin: users.isAdmin,
         status: users.status,
+        interestedCategoryIds: users.interestedCategoryIds,
+        lastMarketNotifiedAt: users.lastMarketNotifiedAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         productCount: sql<number>`count(${products.id})::int`,

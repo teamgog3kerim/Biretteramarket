@@ -100,7 +100,7 @@ function demandSignal(cat: MarketAnalysis["categories"][number]) {
 export default function MarketAnalysisPage() {
   const { data, isLoading } = useQuery<MarketAnalysis>({
     queryKey: ["/api/market-analysis"],
-    refetchInterval: 60_000, // refresh every minute for near real-time data
+    refetchInterval: 10 * 60_000, // reports are generated daily; refresh every 10 minutes is plenty
   });
 
   // Pivot price trends: one row per date, one key per category

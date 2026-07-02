@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   telegramUsername: varchar("telegram_username"),
   isAdmin: boolean("is_admin").default(false),
   status: varchar("status").default("active"), // 'active', 'suspended'
+  interestedCategoryIds: text("interested_category_ids").array(), // 1-5 top-level category ids for daily market notifications
+  lastMarketNotifiedAt: timestamp("last_market_notified_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

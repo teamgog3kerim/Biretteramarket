@@ -23,6 +23,7 @@ import SellerPage from "@/pages/seller-page";
 import AdminPage from "@/pages/admin";
 import BottomNavigation from "@/components/bottom-navigation";
 import AccountTypeModal from "@/components/account-type-modal";
+import InterestsModal from "@/components/interests-modal";
 import WelcomeModal from "@/components/welcome-modal";
 import MyStoreFab from "@/components/my-store-fab";
 import { isSellerType } from "@shared/schema";
@@ -46,6 +47,11 @@ function Router() {
   }, []);
 
   const needsAccountType = isAuthenticated && user != null && !user.accountTypeSelected;
+  const needsInterests =
+    isAuthenticated &&
+    user != null &&
+    user.accountTypeSelected === true &&
+    (!user.interestedCategoryIds || user.interestedCategoryIds.length === 0);
 
   if (isLoading || (isTelegram && isAuthenticating && !isAuthenticated)) {
     return (
@@ -82,6 +88,7 @@ function Router() {
       
       <WelcomeModal isOpen={isTelegram && showWelcome} onEnter={() => setShowWelcome(false)} />
       {!(isTelegram && showWelcome) && needsAccountType && <AccountTypeModal isOpen />}
+      {!(isTelegram && showWelcome) && !needsAccountType && needsInterests && <InterestsModal isOpen />}
       {isAuthenticated && user != null && isSellerType(user.userType ?? "") && <MyStoreFab />}
       {isAuthenticated && <BottomNavigation />}
     </div>

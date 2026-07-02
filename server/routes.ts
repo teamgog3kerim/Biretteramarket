@@ -6,6 +6,7 @@ import { setupTelegramAuth, notifyAdminsOnTelegram, notifyUserOnTelegram } from 
 import { initializeMarketReporting } from "./marketReports";
 import { initializeSampleData } from "./seedTransactions";
 import { initializeSubscriptionReminders } from "./subscriptionReminders";
+import { initializeMarketNotifications } from "./marketNotifications";
 import { 
   insertProductSchema, 
   insertCategorySchema, 
@@ -49,6 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Start the subscription expiry reminder job (4-day warning via Telegram)
   initializeSubscriptionReminders();
+
+  // Start the daily market notification job (per-user interested categories)
+  initializeMarketNotifications();
 
   // Blocks suspended accounts from performing write actions
   const notSuspended = async (req: any, res: any, next: any) => {
@@ -582,6 +586,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user type" });
+    }
+  });
+
+  // Update the user's interested categories (min 1, max 5 top-level categories)
+  app.put('/api/auth/user/interests', isAuthenticated, notSuspended, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = z.array(z.string().min(1)).min(1).max(5).safeParse(req.body?.categoryIds);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Select between 1 and 5 categories" });
+      }
+      const categoryIds = Array.from(new Set(parsed.data));
+
+      const allCategories = await storage.getCategories();
+      const topLevelIds = new Set(allCategories.filter((c) => !c.parentId).map((c) => c.id));
+      if (!categoryIds.every((id) => topLevelIds.has(id))) {
+        return res.status(400).json({ message: "Invalid category selection" });
+      }
+
+      const updatedUser = await storage.updateUserInterests(userId, categoryIds);
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update interests" });
     }
   });
 

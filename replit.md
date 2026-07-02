@@ -53,6 +53,7 @@ Preferred communication style: Simple, everyday language.
 - **Favorites System**: Product bookmarking for registered users
 - **Mobile-First UI**: Bottom navigation and responsive design optimized for mobile devices
 
+- **Market Interest Notifications**: Users pick 1–5 top-level categories (users.interestedCategoryIds; PUT /api/auth/user/interests validates 1–5 top-level ids, guarded by notSuspended). InterestsModal is forced during onboarding (after account-type selection in App.tsx) and editable from Profile → Market Interests. Background job (server/marketNotifications.ts) runs 30s after startup then hourly: after 06:00 UTC (9am Addis), sends each Telegram user one bilingual daily summary of their categories (child-category market reports roll up to top-level ancestors; avg/min/max ETB, trend %, listings). Once-per-day gating via users.lastMarketNotifiedAt with atomic claim (claimMarketNotification, UTC day boundary) and clear-on-failure retry.
 - **Expiry Reminders**: Background job (server/subscriptionReminders.ts, started from registerRoutes) runs 15s after startup then every 6h; finds active subscriptions expiring within 4 days (expiryNotifiedAt null), atomically claims via claimExpiryNotification (conditional UPDATE prevents double-send), sends bilingual EN/Amharic Telegram reminder with renewal steps, and releases the claim (clearExpiryNotification) on delivery failure so the next cycle retries. notifyUserOnTelegram/sendTelegramMessage return booleans; non-Telegram users are treated as handled (no channel).
 
 # External Dependencies

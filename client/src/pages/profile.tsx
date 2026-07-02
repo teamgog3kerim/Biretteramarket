@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import SubscriptionModal from "@/components/subscription-modal";
 import EditProfileModal from "@/components/edit-profile-modal";
+import InterestsModal from "@/components/interests-modal";
 import { useState, useEffect } from "react";
 import { 
   User, 
@@ -44,6 +45,7 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showInterests, setShowInterests] = useState(false);
 
   const { data: userProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/seller/products"],
@@ -275,7 +277,7 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground">
                     {subscriptionStatus?.planType === 'free_trial' 
                       ? `${subscriptionStatus.daysLeft} days remaining`
-                      : 'Get 30 days free access to seller contacts'
+                      : 'Get 20 days free access to seller contacts'
                     }
                   </p>
                 </div>
@@ -341,6 +343,25 @@ export default function Profile() {
               </Button>
             </Link>
           )}
+
+          {/* Market Interests */}
+          <Button
+            variant="ghost"
+            className="w-full flex items-center justify-between p-3 h-auto"
+            onClick={() => setShowInterests(true)}
+            data-testid="button-market-interests"
+          >
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-5 w-5 text-secondary" />
+              <span className="flex-1 text-left">Market Interests</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" data-testid="text-interests-count">
+                {user?.interestedCategoryIds?.length ?? 0}
+              </Badge>
+              <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+            </div>
+          </Button>
 
           {/* Orders/Purchases */}
           <Link href="/orders">
@@ -466,6 +487,12 @@ export default function Profile() {
           user={user}
         />
       )}
+
+      <InterestsModal
+        isOpen={showInterests}
+        initialSelection={user?.interestedCategoryIds}
+        onClose={() => setShowInterests(false)}
+      />
     </div>
   );
 }
