@@ -23,6 +23,8 @@ import SellerPage from "@/pages/seller-page";
 import BottomNavigation from "@/components/bottom-navigation";
 import AccountTypeModal from "@/components/account-type-modal";
 import WelcomeModal from "@/components/welcome-modal";
+import MyStoreFab from "@/components/my-store-fab";
+import { isSellerType } from "@shared/schema";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -67,6 +69,7 @@ function Router() {
       
       <WelcomeModal isOpen={isTelegram && showWelcome} onEnter={() => setShowWelcome(false)} />
       {!(isTelegram && showWelcome) && needsAccountType && <AccountTypeModal isOpen />}
+      {isAuthenticated && user != null && isSellerType(user.userType ?? "") && <MyStoreFab />}
       {isAuthenticated && <BottomNavigation />}
     </div>
   );
