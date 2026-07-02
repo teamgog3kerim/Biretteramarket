@@ -33,6 +33,17 @@ function Router() {
   useTelegramBackButton();
   const [showWelcome, setShowWelcome] = useState(true);
 
+  // Re-show the welcome popup every time the user comes back to the mini app
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setShowWelcome(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   const needsAccountType = isAuthenticated && user != null && !user.accountTypeSelected;
 
   if (isLoading || (isTelegram && isAuthenticating && !isAuthenticated)) {
