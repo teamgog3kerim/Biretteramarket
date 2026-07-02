@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Home, Grid3x3, Calculator, User } from "lucide-react";
+import { Home, Grid3x3, BarChart3, Calculator, User } from "lucide-react";
 
 export default function BottomNavigation() {
   const [location] = useLocation();
@@ -15,6 +15,11 @@ export default function BottomNavigation() {
       name: "Categories",
       icon: Grid3x3,
       path: "/categories",
+    },
+    {
+      name: "Analysis",
+      icon: BarChart3,
+      path: "/market-analysis",
     },
     {
       name: "Calculators",

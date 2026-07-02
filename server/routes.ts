@@ -412,6 +412,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Market analysis route
+  app.get('/api/market-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const analysis = await storage.getMarketAnalysis();
+      res.json(analysis);
+    } catch (error) {
+      console.error("Market analysis error:", error);
+      res.status(500).json({ message: "Failed to generate market analysis" });
+    }
+  });
+
   // Market report routes
   app.get('/api/market-reports', async (req, res) => {
     try {

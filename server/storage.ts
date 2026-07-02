@@ -95,6 +95,48 @@ export interface IStorage {
     monthlySales: { month: string; sales: number; revenue: string }[];
   }>;
   
+  // Market analysis operations
+  getMarketAnalysis(): Promise<{
+    overview: {
+      totalListings: number;
+      totalSupplyQuantity: string;
+      transactions30d: number;
+      volumeSold30d: string;
+      revenue30d: string;
+      activeSellers: number;
+    };
+    categories: {
+      categoryId: string;
+      categoryName: string;
+      listings: number;
+      supplyQuantity: string;
+      avgPrice: string | null;
+      minPrice: string | null;
+      maxPrice: string | null;
+      transactions30d: number;
+      soldQuantity30d: string;
+      views7d: number;
+      favoritesCount: number;
+    }[];
+    priceTrends: {
+      date: string;
+      categoryName: string;
+      averagePrice: string | null;
+      priceChangePercent: string | null;
+    }[];
+    topProducts: {
+      id: string;
+      name: string;
+      categoryName: string;
+      price: string;
+      unit: string | null;
+      quantityAvailable: string | null;
+      views7d: number;
+      favoritesCount: number;
+      soldQuantity30d: string;
+    }[];
+  }>;
+
   // Payment method operations
   getPaymentMethods(userId: string): Promise<PaymentMethod[]>;
   createPaymentMethod(userId: string, method: InsertPaymentMethod): Promise<PaymentMethod>;
@@ -599,6 +641,163 @@ export class DatabaseStorage implements IStorage {
       .set({ isDefault: true })
       .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)));
     return true;
+  }
+
+  // Market analysis operations
+  async getMarketAnalysis() {
+    const now = new Date();
+    const days30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const days7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const days14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    // Supply: active listings per category
+    const supplyRows = await db
+      .select({
+        categoryId: categories.id,
+        categoryName: categories.name,
+        listings: sql<number>`count(${products.id})::int`,
+        supplyQuantity: sql<string>`coalesce(sum(${products.quantityAvailable}), 0)::text`,
+        avgPrice: sql<string | null>`round(avg(${products.price}), 2)::text`,
+        minPrice: sql<string | null>`min(${products.price})::text`,
+        maxPrice: sql<string | null>`max(${products.price})::text`,
+      })
+      .from(categories)
+      .leftJoin(products, and(eq(products.categoryId, categories.id), eq(products.active, true)))
+      .groupBy(categories.id, categories.name);
+
+    // Demand = pending + completed sales in last 30 days (cancelled excluded)
+    const demandRows = await db
+      .select({
+        categoryId: products.categoryId,
+        transactions30d: sql<number>`count(${transactions.id})::int`,
+        soldQuantity30d: sql<string>`coalesce(sum(${transactions.quantity}), 0)::text`,
+        revenue30d: sql<string>`coalesce(sum(${transactions.totalAmount}), 0)::text`,
+      })
+      .from(transactions)
+      .innerJoin(products, eq(transactions.productId, products.id))
+      .where(and(
+        gte(transactions.transactionDate, days30),
+        sql`${transactions.status} != 'cancelled'`
+      ))
+      .groupBy(products.categoryId);
+
+    // Interest: views in last 7 days per category
+    const viewRows = await db
+      .select({
+        categoryId: products.categoryId,
+        views7d: sql<number>`count(${productViews.id})::int`,
+      })
+      .from(productViews)
+      .innerJoin(products, eq(productViews.productId, products.id))
+      .where(gte(productViews.viewedAt, days7))
+      .groupBy(products.categoryId);
+
+    // Interest: favorites per category
+    const favoriteRows = await db
+      .select({
+        categoryId: products.categoryId,
+        favoritesCount: sql<number>`count(${favorites.id})::int`,
+      })
+      .from(favorites)
+      .innerJoin(products, eq(favorites.productId, products.id))
+      .groupBy(products.categoryId);
+
+    // Price trends: market reports from last 14 days
+    const trendRows = await db
+      .select({
+        date: sql<string>`to_char(${marketReports.reportDate}, 'YYYY-MM-DD')`,
+        categoryName: categories.name,
+        averagePrice: marketReports.averagePrice,
+        priceChangePercent: marketReports.priceChangePercent,
+      })
+      .from(marketReports)
+      .innerJoin(categories, eq(marketReports.categoryId, categories.id))
+      .where(gte(marketReports.reportDate, days14))
+      .orderBy(marketReports.reportDate);
+
+    // Top products by demand signals
+    const topProductRows = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        categoryName: categories.name,
+        price: products.price,
+        unit: products.unit,
+        quantityAvailable: products.quantityAvailable,
+        views7d: sql<number>`(select count(*) from ${productViews} pv where pv.product_id = ${products.id} and pv.viewed_at >= ${days7})::int`,
+        favoritesCount: sql<number>`(select count(*) from ${favorites} f where f.product_id = ${products.id})::int`,
+        soldQuantity30d: sql<string>`coalesce((select sum(t.quantity) from ${transactions} t where t.product_id = ${products.id} and t.transaction_date >= ${days30} and t.status != 'cancelled'), 0)::text`,
+      })
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(products.active, true));
+
+    // Overview aggregates
+    const [overviewTx] = await db
+      .select({
+        transactions30d: sql<number>`count(${transactions.id})::int`,
+        volumeSold30d: sql<string>`coalesce(sum(${transactions.quantity}), 0)::text`,
+        revenue30d: sql<string>`coalesce(sum(${transactions.totalAmount}), 0)::text`,
+      })
+      .from(transactions)
+      .where(and(
+        gte(transactions.transactionDate, days30),
+        sql`${transactions.status} != 'cancelled'`
+      ));
+
+    const [overviewSupply] = await db
+      .select({
+        totalListings: sql<number>`count(${products.id})::int`,
+        totalSupplyQuantity: sql<string>`coalesce(sum(${products.quantityAvailable}), 0)::text`,
+        activeSellers: sql<number>`count(distinct ${products.sellerId})::int`,
+      })
+      .from(products)
+      .where(eq(products.active, true));
+
+    const demandMap = new Map(demandRows.map(r => [r.categoryId, r]));
+    const viewMap = new Map(viewRows.map(r => [r.categoryId, r]));
+    const favMap = new Map(favoriteRows.map(r => [r.categoryId, r]));
+
+    const categoriesData = supplyRows.map(row => ({
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      listings: row.listings,
+      supplyQuantity: row.supplyQuantity,
+      avgPrice: row.avgPrice,
+      minPrice: row.minPrice,
+      maxPrice: row.maxPrice,
+      transactions30d: demandMap.get(row.categoryId)?.transactions30d ?? 0,
+      soldQuantity30d: demandMap.get(row.categoryId)?.soldQuantity30d ?? "0",
+      views7d: viewMap.get(row.categoryId)?.views7d ?? 0,
+      favoritesCount: favMap.get(row.categoryId)?.favoritesCount ?? 0,
+    }));
+
+    // Rank top products by a composite demand score
+    const topProducts = topProductRows
+      .map(p => ({
+        ...p,
+        _score:
+          p.views7d * 1 +
+          p.favoritesCount * 3 +
+          parseFloat(p.soldQuantity30d || "0") * 5,
+      }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 8)
+      .map(({ _score, ...p }) => p);
+
+    return {
+      overview: {
+        totalListings: overviewSupply?.totalListings ?? 0,
+        totalSupplyQuantity: overviewSupply?.totalSupplyQuantity ?? "0",
+        transactions30d: overviewTx?.transactions30d ?? 0,
+        volumeSold30d: overviewTx?.volumeSold30d ?? "0",
+        revenue30d: overviewTx?.revenue30d ?? "0",
+        activeSellers: overviewSupply?.activeSellers ?? 0,
+      },
+      categories: categoriesData,
+      priceTrends: trendRows,
+      topProducts,
+    };
   }
 
   async getSellerAnalytics(sellerId: string): Promise<{
