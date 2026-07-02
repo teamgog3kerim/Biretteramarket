@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Height-bounded onboarding dialog with legacy webview fallback (older Telegram Android lacks dvh support) */
+.account-type-dialog {
+  max-height: 85vh;
+}
+@supports (height: 1dvh) {
+  .account-type-dialog {
+    max-height: 85dvh;
+  }
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(0, 0%, 0%);

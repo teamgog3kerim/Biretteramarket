@@ -71,18 +71,18 @@ export default function AccountTypeModal({ isOpen }: AccountTypeModalProps) {
   return (
     <Dialog open={isOpen}>
       <DialogContent
-        className="max-w-md mx-auto max-h-[90vh] overflow-y-auto [&>button]:hidden"
+        className="max-w-md mx-auto account-type-dialog flex flex-col gap-3 p-4 [&>button]:hidden"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-center">Choose Your Account Type</DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogDescription className="text-center text-xs">
             Select how you want to use Biret Tera. You can change this later in your profile.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
           {USER_TYPES.map((type) => {
             const info = TYPE_INFO[type];
             const Icon = info.icon;
@@ -97,8 +97,8 @@ export default function AccountTypeModal({ isOpen }: AccountTypeModalProps) {
                 data-testid={`card-account-type-${type}`}
               >
                 <CardContent className="p-3 flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Icon className="h-5 w-5 text-primary" />
+                  <div className="w-9 h-9 bg-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium text-sm">{info.label}</h3>
@@ -111,21 +111,22 @@ export default function AccountTypeModal({ isOpen }: AccountTypeModalProps) {
           })}
         </div>
 
-        {selected && isSellerType(selected) && (
-          <p className="text-xs text-muted-foreground text-center">
-            Seller accounts include a 20-day free trial. After the trial, listing products costs
-            990 ETB/month.
-          </p>
-        )}
-
-        <Button
-          className="w-full"
-          disabled={!selected || updateUserType.isPending}
-          onClick={() => selected && updateUserType.mutate(selected)}
-          data-testid="button-confirm-account-type"
-        >
-          {updateUserType.isPending ? "Setting up..." : "Continue"}
-        </Button>
+        <div className="flex-shrink-0 space-y-2">
+          {selected && isSellerType(selected) && (
+            <p className="text-xs text-muted-foreground text-center">
+              Seller accounts include a 20-day free trial. After the trial, listing products
+              costs 990 ETB/month.
+            </p>
+          )}
+          <Button
+            className="w-full"
+            disabled={!selected || updateUserType.isPending}
+            onClick={() => selected && updateUserType.mutate(selected)}
+            data-testid="button-confirm-account-type"
+          >
+            {updateUserType.isPending ? "Setting up..." : "Continue"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
