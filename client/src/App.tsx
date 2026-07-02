@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -22,12 +22,14 @@ import ProductDetails from "@/pages/product-details";
 import SellerPage from "@/pages/seller-page";
 import BottomNavigation from "@/components/bottom-navigation";
 import AccountTypeModal from "@/components/account-type-modal";
+import WelcomeModal from "@/components/welcome-modal";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { isTelegram, isAuthenticating, authError, retry } = useTelegramAuth();
   useTelegramBackButton();
+  const [showWelcome, setShowWelcome] = useState(true);
 
   const needsAccountType = isAuthenticated && user != null && !user.accountTypeSelected;
 
@@ -63,7 +65,8 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       
-      {needsAccountType && <AccountTypeModal isOpen />}
+      <WelcomeModal isOpen={isTelegram && showWelcome} onEnter={() => setShowWelcome(false)} />
+      {!(isTelegram && showWelcome) && needsAccountType && <AccountTypeModal isOpen />}
       {isAuthenticated && <BottomNavigation />}
     </div>
   );

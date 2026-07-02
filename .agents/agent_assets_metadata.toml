@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "_bAh_mZC6xEb3GVM2Nmg1"
+uri = "file://client/src/assets/biret-tera-logo.png"
+type = "image"
+title = "Biret Tera logo emblem"
