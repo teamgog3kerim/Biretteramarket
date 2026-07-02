@@ -87,6 +87,7 @@ export const subscriptions = pgTable("subscriptions", {
   receiptImage: text("receipt_image"), // base64 data URL of the payment receipt screenshot
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
+  expiryNotifiedAt: timestamp("expiry_notified_at"), // when the 4-day expiry reminder was sent
   createdAt: timestamp("created_at").defaultNow(),
 });
 

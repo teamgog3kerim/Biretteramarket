@@ -53,6 +53,8 @@ Preferred communication style: Simple, everyday language.
 - **Favorites System**: Product bookmarking for registered users
 - **Mobile-First UI**: Bottom navigation and responsive design optimized for mobile devices
 
+- **Expiry Reminders**: Background job (server/subscriptionReminders.ts, started from registerRoutes) runs 15s after startup then every 6h; finds active subscriptions expiring within 4 days (expiryNotifiedAt null), atomically claims via claimExpiryNotification (conditional UPDATE prevents double-send), sends bilingual EN/Amharic Telegram reminder with renewal steps, and releases the claim (clearExpiryNotification) on delivery failure so the next cycle retries. notifyUserOnTelegram/sendTelegramMessage return booleans; non-Telegram users are treated as handled (no channel).
+
 # External Dependencies
 
 ## Database & Infrastructure

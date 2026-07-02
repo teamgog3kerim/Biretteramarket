@@ -36,7 +36,7 @@ import {
   SELLER_TYPES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, like, or, sql, gte, lte, count, inArray } from "drizzle-orm";
+import { eq, desc, and, like, or, sql, gte, lte, count, inArray, isNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -68,6 +68,9 @@ export interface IStorage {
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   updateSubscription(id: string, subscription: Partial<InsertSubscription>): Promise<Subscription>;
   getSubscriptionById(id: string): Promise<Subscription | undefined>;
+  getSubscriptionsExpiringSoon(withinDays: number): Promise<(Subscription & { user: User })[]>;
+  claimExpiryNotification(id: string): Promise<boolean>;
+  clearExpiryNotification(id: string): Promise<void>;
 
   // Admin operations
   getAdminStats(): Promise<{ totalUsers: number; totalSellers: number; totalProducts: number; pendingSubscriptions: number; activeSubscriptions: number }>;
@@ -394,6 +397,43 @@ export class DatabaseStorage implements IStorage {
     return subscription;
   }
 
+  async getSubscriptionsExpiringSoon(withinDays: number): Promise<(Subscription & { user: User })[]> {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({ subscription: subscriptions, user: users })
+      .from(subscriptions)
+      .innerJoin(users, eq(subscriptions.userId, users.id))
+      .where(
+        and(
+          eq(subscriptions.status, "active"),
+          isNull(subscriptions.expiryNotifiedAt),
+          gte(subscriptions.endDate, now),
+          lte(subscriptions.endDate, cutoff),
+        ),
+      );
+    return rows.map((r) => ({ ...r.subscription, user: r.user }));
+  }
+
+  // Atomically claims the reminder so concurrent runs can't double-send.
+  // Returns false if another process already claimed it.
+  async claimExpiryNotification(id: string): Promise<boolean> {
+    const rows = await db
+      .update(subscriptions)
+      .set({ expiryNotifiedAt: new Date() })
+      .where(and(eq(subscriptions.id, id), isNull(subscriptions.expiryNotifiedAt)))
+      .returning({ id: subscriptions.id });
+    return rows.length > 0;
+  }
+
+  // Releases the claim after a failed send so the next run retries.
+  async clearExpiryNotification(id: string): Promise<void> {
+    await db
+      .update(subscriptions)
+      .set({ expiryNotifiedAt: null })
+      .where(eq(subscriptions.id, id));
+  }
+
   // Admin operations
   async getAdminStats(): Promise<{ totalUsers: number; totalSellers: number; totalProducts: number; pendingSubscriptions: number; activeSubscriptions: number }> {
     const [totalUsers] = await db.select({ value: count() }).from(users);
@@ -445,7 +485,7 @@ export class DatabaseStorage implements IStorage {
     const countMap = new Map(productCounts.map((p) => [p.sellerId, Number(p.cnt)]));
     const subMap = new Map<string, Subscription>();
     for (const s of allSubs) {
-      if (!subMap.has(s.userId)) subMap.set(s.userId, { ...s, receiptImage: null });
+      if (!subMap.has(s.userId)) subMap.set(s.userId, { ...s, receiptImage: null, expiryNotifiedAt: null });
     }
     return allUsers.map((u) => ({
       ...u,

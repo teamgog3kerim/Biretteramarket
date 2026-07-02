@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupTelegramAuth, notifyAdminsOnTelegram, notifyUserOnTelegram } from "./telegramAuth";
 import { initializeMarketReporting } from "./marketReports";
 import { initializeSampleData } from "./seedTransactions";
+import { initializeSubscriptionReminders } from "./subscriptionReminders";
 import { 
   insertProductSchema, 
   insertCategorySchema, 
@@ -45,6 +46,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize sample data for development
   await initializeSampleData();
+
+  // Start the subscription expiry reminder job (4-day warning via Telegram)
+  initializeSubscriptionReminders();
 
   // Blocks suspended accounts from performing write actions
   const notSuspended = async (req: any, res: any, next: any) => {

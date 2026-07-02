@@ -120,9 +120,9 @@ export function setupTelegramAuth(app: Express) {
   });
 }
 
-async function sendTelegramMessage(chatId: string, text: string) {
+async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) return;
+  if (!botToken) return false;
   try {
     const resp = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
@@ -137,9 +137,12 @@ async function sendTelegramMessage(chatId: string, text: string) {
         `Failed to send Telegram message to ${chatId}:`,
         await resp.text(),
       );
+      return false;
     }
+    return true;
   } catch (err) {
     console.error(`Failed to send Telegram message to ${chatId}:`, err);
+    return false;
   }
 }
 
@@ -158,8 +161,9 @@ export async function notifyAdminsOnTelegram(text: string) {
   }
 }
 
-// Send a notification to a specific user if they signed in via Telegram
-export async function notifyUserOnTelegram(userId: string, text: string) {
-  if (!userId.startsWith("telegram:")) return;
-  await sendTelegramMessage(userId.replace("telegram:", ""), text);
+// Send a notification to a specific user if they signed in via Telegram.
+// Returns true if delivered (or if the user has no Telegram channel — nothing to send).
+export async function notifyUserOnTelegram(userId: string, text: string): Promise<boolean> {
+  if (!userId.startsWith("telegram:")) return true;
+  return await sendTelegramMessage(userId.replace("telegram:", ""), text);
 }
