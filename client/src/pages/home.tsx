@@ -8,10 +8,92 @@ import SubscriptionModal from "@/components/subscription-modal";
 import { useState } from "react";
 import { Search, Filter, Bell, User, Calculator, Factory, HardHat, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
+import { isSellerType } from "@shared/schema";
 import type { Product, User as UserType, Category } from "@shared/schema";
 
 type ProductWithRelations = Product & { seller: UserType; category: Category };
 type TopSeller = UserType & { productCount: number };
+
+function SellerListSection({
+  title,
+  sellers,
+  emptyMessage,
+  onSellerClick,
+}: {
+  title: string;
+  sellers: TopSeller[];
+  emptyMessage?: string;
+  onSellerClick: (id: string) => void;
+}) {
+  return (
+    <div className="px-2 sm:px-4 mb-4 sm:mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold">{title}</h2>
+      </div>
+      <div className="space-y-3">
+        {sellers.map((seller) => (
+          <Card
+            key={seller.id}
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => onSellerClick(seller.id)}
+            data-testid={`card-seller-${seller.id}`}
+          >
+            <CardContent className="p-3 flex items-center space-x-3">
+              <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center overflow-hidden">
+                {seller.profileImageUrl ? (
+                  <img
+                    src={seller.profileImageUrl}
+                    alt={seller.firstName || "Seller"}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <i className="fas fa-store text-accent-foreground"></i>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium">
+                  {seller.businessName ||
+                    (seller.firstName && seller.lastName
+                      ? `${seller.firstName} ${seller.lastName}`
+                      : seller.email?.split("@")[0] || "Seller")}
+                </h3>
+                {seller.contactPerson && (
+                  <p className="text-xs text-muted-foreground">Contact: {seller.contactPerson}</p>
+                )}
+                {seller.location && (
+                  <p className="text-xs text-muted-foreground">{seller.location}</p>
+                )}
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-muted-foreground" data-testid={`text-product-count-${seller.id}`}>
+                  {seller.productCount} products
+                </span>
+                <Button
+                  size="sm"
+                  className="block mt-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSellerClick(seller.id);
+                  }}
+                  data-testid={`button-view-store-${seller.id}`}
+                >
+                  View Store
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {sellers.length === 0 && emptyMessage && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">{emptyMessage}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const { user } = useAuth();
@@ -25,6 +107,14 @@ export default function Home() {
 
   const { data: topSellers = [] } = useQuery<TopSeller[]>({
     queryKey: ["/api/sellers/top", { limit: 5 }],
+  });
+
+  const { data: topImporters = [] } = useQuery<TopSeller[]>({
+    queryKey: ["/api/sellers/top", { limit: 3, type: "importer" }],
+  });
+
+  const { data: topManufacturers = [] } = useQuery<TopSeller[]>({
+    queryKey: ["/api/sellers/top", { limit: 3, type: "manufacturer" }],
   });
 
   const { data: recentProducts = [] } = useQuery<ProductWithRelations[]>({
@@ -132,65 +222,30 @@ export default function Home() {
       </div>
 
       {/* Top Sellers Section */}
-      <div className="px-2 sm:px-4 mb-4 sm:mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">Top Sellers</h2>
-          <Button variant="link" className="text-primary p-0" data-testid="link-view-all-sellers">
-            View All
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {topSellers.map((seller: any, index: number) => (
-            <Card key={seller.id}>
-              <CardContent className="p-3 flex items-center space-x-3">
-                <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center">
-                  {seller.profileImageUrl ? (
-                    <img 
-                      src={seller.profileImageUrl} 
-                      alt={seller.firstName || "Seller"}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <i className="fas fa-store text-accent-foreground"></i>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">
-                    {seller.firstName && seller.lastName 
-                      ? `${seller.firstName} ${seller.lastName}`
-                      : seller.email?.split('@')[0] || "Seller"
-                    }
-                  </h3>
-                  <p className="text-xs text-muted-foreground">Construction materials specialist</p>
-                  <div className="flex items-center mt-1">
-                    <div className="flex text-accent text-xs mr-2">
-                      {[...Array(5)].map((_, i) => (
-                        <i key={i} className="fas fa-star"></i>
-                      ))}
-                    </div>
-                    <span className="text-xs text-muted-foreground">4.9 (234 reviews)</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-muted-foreground" data-testid={`text-product-count-${seller.id}`}>
-                    {seller.productCount} products
-                  </span>
-                  <Button size="sm" className="block mt-1" data-testid={`button-follow-${seller.id}`}>
-                    Follow
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {topSellers.length === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No sellers available yet</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+      <SellerListSection
+        title="Top Sellers"
+        sellers={topSellers}
+        emptyMessage="No sellers available yet"
+        onSellerClick={(id) => setLocation(`/seller/${id}`)}
+      />
+
+      {/* Top Importers Section */}
+      {topImporters.length > 0 && (
+        <SellerListSection
+          title="Top Importers"
+          sellers={topImporters}
+          onSellerClick={(id) => setLocation(`/seller/${id}`)}
+        />
+      )}
+
+      {/* Top Manufacturers Section */}
+      {topManufacturers.length > 0 && (
+        <SellerListSection
+          title="Top Manufacturers"
+          sellers={topManufacturers}
+          onSellerClick={(id) => setLocation(`/seller/${id}`)}
+        />
+      )}
 
       {/* Recent Products */}
       <div className="px-2 sm:px-4 mb-4 sm:mb-6">
@@ -207,13 +262,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Free Trial Banner */}
-      {(!user?.subscription || user.subscription.planType === 'free_trial') && (
+      {/* Free Trial Banner — only for seller-type accounts without an active paid plan */}
+      {isSellerType(user?.userType) && (!user?.subscription || user.subscription.planType === 'free_trial') && (
         <div className="mx-4 mb-6 bg-gradient-to-r from-primary to-accent rounded-lg p-4 text-white">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h3 className="font-bold text-sm mb-1">Start Your Free Trial!</h3>
-              <p className="text-xs opacity-90">Get 1 month free access to seller contacts</p>
+              <h3 className="font-bold text-sm mb-1">Grow Your Business!</h3>
+              <p className="text-xs opacity-90">20-day free trial, then 990 ETB/month to list products</p>
             </div>
             <Button
               onClick={() => setShowSubscriptionModal(true)}

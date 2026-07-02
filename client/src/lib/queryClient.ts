@@ -29,22 +29,27 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Build URL properly handling objects in queryKey
+    // Build URL: string/number segments become path parts, an object becomes query params
     let url = queryKey[0] as string;
-    if (queryKey.length > 1 && queryKey[1]) {
-      const params = new URLSearchParams();
-      const queryParams = queryKey[1] as Record<string, any>;
-      
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          params.append(key, value.toString());
-        }
-      });
-      
-      const queryString = params.toString();
-      if (queryString) {
-        url += `?${queryString}`;
+    const params = new URLSearchParams();
+
+    for (let i = 1; i < queryKey.length; i++) {
+      const part = queryKey[i];
+      if (part === undefined || part === null) continue;
+      if (typeof part === "string" || typeof part === "number") {
+        url += `/${encodeURIComponent(part)}`;
+      } else if (typeof part === "object") {
+        Object.entries(part as Record<string, any>).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            params.append(key, value.toString());
+          }
+        });
       }
+    }
+
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
     }
 
     const res = await fetch(url, {

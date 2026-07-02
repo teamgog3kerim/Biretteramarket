@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { updateProfileSchema, type UpdateProfile, type User } from "@shared/schema";
+import { updateProfileSchema, isSellerType, type UpdateProfile, type User } from "@shared/schema";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -33,7 +33,7 @@ interface EditProfileModalProps {
 export default function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isSeller = user.userType === "seller";
+  const isSeller = isSellerType(user.userType);
 
   const form = useForm<UpdateProfile>({
     resolver: zodResolver(updateProfileSchema),
@@ -43,6 +43,7 @@ export default function EditProfileModal({ isOpen, onClose, user }: EditProfileM
       phone: user.phone ?? "",
       location: user.location ?? "",
       businessName: user.businessName ?? "",
+      contactPerson: user.contactPerson ?? "",
     },
   });
 
@@ -55,6 +56,7 @@ export default function EditProfileModal({ isOpen, onClose, user }: EditProfileM
         phone: user.phone ?? "",
         location: user.location ?? "",
         businessName: user.businessName ?? "",
+        contactPerson: user.contactPerson ?? "",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,24 +180,44 @@ export default function EditProfileModal({ isOpen, onClose, user }: EditProfileM
             />
 
             {isSeller && (
-              <FormField
-                control={form.control}
-                name="businessName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Business Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Your business or shop name"
-                        {...field}
-                        value={field.value ?? ""}
-                        data-testid="input-business-name"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <>
+                <FormField
+                  control={form.control}
+                  name="businessName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company / Business Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Your business or shop name"
+                          {...field}
+                          value={field.value ?? ""}
+                          data-testid="input-business-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contactPerson"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Person</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Person buyers should contact"
+                          {...field}
+                          value={field.value ?? ""}
+                          data-testid="input-contact-person"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
 
             <DialogFooter className="gap-2 sm:gap-0">

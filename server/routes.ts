@@ -16,7 +16,10 @@ import {
   insertProductViewSchema,
   insertPriceHistorySchema,
   insertPaymentMethodSchema,
-  updateProfileSchema
+  updateProfileSchema,
+  userTypeSchema,
+  isSellerType,
+  FREE_TRIAL_DAYS
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -108,8 +111,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.userType !== 'seller') {
-        return res.status(403).json({ message: "Only sellers can create products" });
+      if (!user || !isSellerType(user.userType)) {
+        return res.status(403).json({ message: "Only seller, dealer, importer, or manufacturer accounts can list products" });
+      }
+
+      const subscription = await storage.getUserSubscription(userId);
+      const now = new Date();
+      const hasActiveSubscription =
+        subscription &&
+        subscription.status === 'active' &&
+        (!subscription.endDate || new Date(subscription.endDate) > now);
+
+      if (!hasActiveSubscription) {
+        return res.status(402).json({
+          message: "Your free trial or subscription has ended. Subscribe for 990 ETB/month to keep listing products.",
+          code: "SUBSCRIPTION_REQUIRED",
+        });
       }
 
       const validatedData = insertProductSchema.parse({
@@ -170,16 +187,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Top sellers route
+  // Top sellers route (optionally filtered by seller type: seller, dealer, importer, manufacturer)
   app.get('/api/sellers/top', async (req, res) => {
     try {
-      const { limit } = req.query;
+      const { limit, type } = req.query;
+      const sellerType = type && isSellerType(type as string) ? (type as string) : undefined;
       const topSellers = await storage.getTopSellers(
-        limit ? parseInt(limit as string) : undefined
+        limit ? parseInt(limit as string) : undefined,
+        sellerType
       );
       res.json(topSellers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch top sellers" });
+    }
+  });
+
+  // Public seller storefront: profile + products (free for buyers)
+  app.get('/api/sellers/:id', async (req, res) => {
+    try {
+      const seller = await storage.getUser(req.params.id);
+      if (!seller || !isSellerType(seller.userType)) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+      const sellerProducts = await storage.getProducts({ sellerId: seller.id });
+      res.json({
+        id: seller.id,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        profileImageUrl: seller.profileImageUrl,
+        businessName: seller.businessName,
+        contactPerson: seller.contactPerson,
+        phone: seller.phone,
+        location: seller.location,
+        email: seller.email,
+        userType: seller.userType,
+        products: sellerProducts.filter((p) => p.active),
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch seller" });
     }
   });
 
@@ -202,13 +247,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
       });
 
+      // Only one free trial per account
+      if (validatedData.planType === 'free_trial') {
+        const previous = await storage.getLatestSubscription(userId);
+        if (previous) {
+          return res.status(400).json({ message: "Free trial already used. Please subscribe to continue." });
+        }
+      }
+
       // Set end date based on plan type
       const now = new Date();
       let endDate: Date;
       
       switch (validatedData.planType) {
         case 'free_trial':
-          endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+          endDate = new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000); // 20 days
           break;
         case 'monthly':
           endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -306,20 +359,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/auth/user/type', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { userType } = req.body;
+      const parsed = userTypeSchema.safeParse(req.body?.userType);
       
-      if (!['buyer', 'seller'].includes(userType)) {
+      if (!parsed.success) {
         return res.status(400).json({ message: "Invalid user type" });
       }
+      const userType = parsed.data;
 
       const updatedUser = await storage.upsertUser({
         id: userId,
         userType,
+        accountTypeSelected: true,
         email: req.user.claims.email,
         firstName: req.user.claims.first_name,
         lastName: req.user.claims.last_name,
         profileImageUrl: req.user.claims.profile_image_url,
       });
+
+      // Auto-start a 20-day free trial the first time an account becomes a seller type
+      if (isSellerType(userType)) {
+        const existing = await storage.getLatestSubscription(userId);
+        if (!existing) {
+          const now = new Date();
+          await storage.createSubscription({
+            userId,
+            planType: 'free_trial',
+            status: 'active',
+            startDate: now,
+            endDate: new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000),
+          });
+        }
+      }
 
       res.json(updatedUser);
     } catch (error) {
@@ -333,10 +403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const validatedData = updateProfileSchema.parse(req.body);
 
-      // Business name only applies to sellers
+      // Business info only applies to seller-type accounts
       const currentUser = await storage.getUser(userId);
-      if (currentUser?.userType !== "seller") {
+      if (!isSellerType(currentUser?.userType)) {
         delete validatedData.businessName;
+        delete validatedData.contactPerson;
       }
 
       const updatedUser = await storage.updateUserProfile(userId, validatedData);
@@ -455,8 +526,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.userType !== 'seller') {
-        return res.status(403).json({ message: "Only sellers can access analytics" });
+      if (!user || !isSellerType(user.userType)) {
+        return res.status(403).json({ message: "Only seller accounts can access analytics" });
       }
 
       const analytics = await storage.getSellerAnalytics(userId);
@@ -471,8 +542,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.userType !== 'seller') {
-        return res.status(403).json({ message: "Only sellers can access transactions" });
+      if (!user || !isSellerType(user.userType)) {
+        return res.status(403).json({ message: "Only seller accounts can access transactions" });
       }
 
       const { limit } = req.query;

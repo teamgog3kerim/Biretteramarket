@@ -19,13 +19,17 @@ import PaymentMethods from "@/pages/payment-methods";
 import MarketAnalysis from "@/pages/market-analysis";
 import SellerDashboard from "@/pages/seller-dashboard";
 import ProductDetails from "@/pages/product-details";
+import SellerPage from "@/pages/seller-page";
 import BottomNavigation from "@/components/bottom-navigation";
+import AccountTypeModal from "@/components/account-type-modal";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { isTelegram, isAuthenticating, authError, retry } = useTelegramAuth();
   useTelegramBackButton();
+
+  const needsAccountType = isAuthenticated && user != null && !user.accountTypeSelected;
 
   if (isLoading || (isTelegram && isAuthenticating && !isAuthenticated)) {
     return (
@@ -53,11 +57,13 @@ function Router() {
             <Route path="/market-analysis" component={MarketAnalysis} />
             <Route path="/seller-dashboard" component={SellerDashboard} />
             <Route path="/product/:id" component={ProductDetails} />
+            <Route path="/seller/:id" component={SellerPage} />
           </>
         )}
         <Route component={NotFound} />
       </Switch>
       
+      {needsAccountType && <AccountTypeModal isOpen />}
       {isAuthenticated && <BottomNavigation />}
     </div>
   );

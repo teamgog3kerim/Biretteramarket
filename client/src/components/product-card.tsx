@@ -15,6 +15,7 @@ interface ProductCardProps {
     name: string;
     description?: string;
     price: string;
+    discountPrice?: string | null;
     unit?: string;
     imageUrl?: string;
     seller: {
@@ -70,12 +71,17 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
     ? `${product.seller.firstName} ${product.seller.lastName}`
     : product.seller.email.split('@')[0];
 
+  const formatETB = (value: number) =>
+    value.toLocaleString('en-ET', {
+      style: 'currency',
+      currency: 'ETB',
+      maximumFractionDigits: 0,
+    });
+
   const price = parseFloat(product.price);
-  const formattedPrice = price.toLocaleString('en-ET', {
-    style: 'currency',
-    currency: 'ETB',
-    maximumFractionDigits: 0,
-  });
+  const discountPrice = product.discountPrice ? parseFloat(product.discountPrice) : null;
+  const hasDiscount = discountPrice !== null && !isNaN(discountPrice) && discountPrice > 0 && discountPrice < price;
+  const formattedPrice = formatETB(price);
 
   return (
     <Link href={`/product/${product.id}`}>
@@ -140,10 +146,20 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1 min-w-0">
-            <span className="text-primary font-bold text-xs sm:text-sm md:text-base" data-testid={`text-product-price-${product.id}`}>
-              {formattedPrice}
-              {product.unit && <span className="text-xs text-muted-foreground">/{product.unit}</span>}
-            </span>
+            {hasDiscount ? (
+              <span className="text-primary font-bold text-xs sm:text-sm md:text-base" data-testid={`text-product-price-${product.id}`}>
+                {formatETB(discountPrice!)}
+                {product.unit && <span className="text-xs text-muted-foreground">/{product.unit}</span>}
+                <span className="ml-1 text-xs text-muted-foreground line-through font-normal">
+                  {formattedPrice}
+                </span>
+              </span>
+            ) : (
+              <span className="text-primary font-bold text-xs sm:text-sm md:text-base" data-testid={`text-product-price-${product.id}`}>
+                {formattedPrice}
+                {product.unit && <span className="text-xs text-muted-foreground">/{product.unit}</span>}
+              </span>
+            )}
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
             <Star className="h-3 w-3 text-accent mr-1 fill-current" />

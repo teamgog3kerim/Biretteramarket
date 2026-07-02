@@ -23,6 +23,13 @@ const addProductSchema = z.object({
     const num = parseFloat(val);
     return !isNaN(num) && num > 0;
   }, "Price must be a valid positive number"),
+  discountPrice: z.string().optional().refine((val) => {
+    if (!val) return true;
+    const num = parseFloat(val);
+    return !isNaN(num) && num > 0;
+  }, "Discount price must be a valid positive number"),
+  specifications: z.string().max(2000, "Specifications are too long").optional(),
+  features: z.string().max(2000, "Features are too long").optional(),
   unit: z.string().min(1, "Unit is required").max(50, "Unit is too long"),
   quantityAvailable: z.string().min(1, "Quantity is required").refine((val) => {
     const num = parseFloat(val);
@@ -61,6 +68,9 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       name: "",
       description: "",
       price: "",
+      discountPrice: "",
+      specifications: "",
+      features: "",
       unit: "",
       quantityAvailable: "",
       categoryId: "",
@@ -79,6 +89,9 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       const payload = {
         ...productData,
         price: productData.price, // Keep as string for backend
+        discountPrice: productData.discountPrice ? productData.discountPrice : undefined,
+        specifications: productData.specifications || undefined,
+        features: productData.features || undefined,
         quantityAvailable: productData.quantityAvailable,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Backwards compatibility
@@ -111,6 +124,15 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
         setTimeout(() => {
           window.location.href = "/api/login";
         }, 500);
+        return;
+      }
+
+      if (error instanceof Error && error.message.startsWith("402")) {
+        toast({
+          title: "Subscription Required",
+          description: "Your free trial or subscription has ended. Subscribe for 990 ETB/month to keep listing products.",
+          variant: "destructive",
+        });
         return;
       }
       
@@ -258,6 +280,31 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
 
               <FormField
                 control={form.control}
+                name="discountPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Discount Price (ETB)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Optional"
+                        {...field}
+                        value={field.value ?? ""}
+                        data-testid="input-product-discount-price"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Optional discounted price
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="quantityAvailable"
                 render={({ field }) => (
                   <FormItem>
@@ -396,6 +443,52 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                   </div>
                   <FormDescription>
                     Pick the closest match — the more specific, the easier buyers can find it
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="specifications"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Specifications</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="e.g., Grade 60, Diameter 16mm, Length 12m, Standard: ES EN 10080"
+                      className="min-h-[80px]"
+                      {...field}
+                      value={field.value ?? ""}
+                      data-testid="textarea-product-specifications"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Technical specifications (size, grade, standard, material)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="features"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Key Features</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="e.g., Corrosion resistant, High tensile strength, Factory certified"
+                      className="min-h-[80px]"
+                      {...field}
+                      value={field.value ?? ""}
+                      data-testid="textarea-product-features"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Highlight what makes this product stand out
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

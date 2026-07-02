@@ -1,3 +1,4 @@
+import { isSellerType } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +44,7 @@ export default function SellerDashboard() {
 
   // Redirect if not a seller
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.userType !== 'seller')) {
+    if (!isLoading && (!isAuthenticated || !isSellerType(user?.userType))) {
       toast({
         title: "Access Denied",
         description: "Only sellers can access this dashboard",
@@ -54,22 +55,22 @@ export default function SellerDashboard() {
 
   const { data: sellerProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/seller/products"],
-    enabled: user?.userType === "seller",
+    enabled: isSellerType(user?.userType),
   });
 
   const { data: sellerAnalytics } = useQuery<SellerAnalytics>({
     queryKey: ["/api/seller/analytics"],
-    enabled: user?.userType === "seller",
+    enabled: isSellerType(user?.userType),
   });
 
   const { data: recentTransactions = [] } = useQuery<TransactionWithRelations[]>({
     queryKey: ["/api/seller/transactions", { limit: 10 }],
-    enabled: user?.userType === "seller",
+    enabled: isSellerType(user?.userType),
   });
 
   const { data: marketReports = [] } = useQuery<MarketReportWithCategory[]>({
     queryKey: ["/api/market-reports"],
-    enabled: user?.userType === "seller",
+    enabled: isSellerType(user?.userType),
   });
 
   if (isLoading) {
@@ -88,7 +89,7 @@ export default function SellerDashboard() {
     );
   }
 
-  if (!isAuthenticated || user?.userType !== 'seller') {
+  if (!isAuthenticated || !isSellerType(user?.userType)) {
     return (
       <div className="pb-20 p-4">
         <Card>

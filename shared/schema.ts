@@ -37,7 +37,9 @@ export const users = pgTable("users", {
   phone: varchar("phone"),
   location: varchar("location"),
   businessName: varchar("business_name"),
-  userType: varchar("user_type").default("buyer"), // 'buyer', 'seller'
+  userType: varchar("user_type").default("buyer"), // 'buyer', 'seller', 'dealer', 'importer', 'manufacturer'
+  accountTypeSelected: boolean("account_type_selected").default(false),
+  contactPerson: varchar("contact_person"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -60,6 +62,9 @@ export const products = pgTable("products", {
   name: varchar("name").notNull(),
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  discountPrice: decimal("discount_price", { precision: 10, scale: 2 }),
+  specifications: text("specifications"),
+  features: text("features"),
   unit: varchar("unit").default("ton"), // 'ton', 'kg', 'piece'
   quantityAvailable: decimal("quantity_available", { precision: 10, scale: 2 }).default("0"),
   imageUrl: varchar("image_url"),
@@ -280,8 +285,23 @@ export const updateProfileSchema = z.object({
   phone: z.string().max(30).optional().nullable(),
   location: z.string().max(120).optional().nullable(),
   businessName: z.string().max(120).optional().nullable(),
+  contactPerson: z.string().max(120).optional().nullable(),
 });
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+
+// Account types
+export const BUYER_TYPE = "buyer" as const;
+export const SELLER_TYPES = ["seller", "dealer", "importer", "manufacturer"] as const;
+export const USER_TYPES = [BUYER_TYPE, ...SELLER_TYPES] as const;
+export type UserType = (typeof USER_TYPES)[number];
+export const userTypeSchema = z.enum(USER_TYPES);
+export function isSellerType(type: string | null | undefined): boolean {
+  return !!type && (SELLER_TYPES as readonly string[]).includes(type);
+}
+
+// Subscription pricing (ETB)
+export const FREE_TRIAL_DAYS = 20;
+export const MONTHLY_PRICE_ETB = 990;
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,

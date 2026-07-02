@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Primary Database**: PostgreSQL with Neon serverless driver
 - **Schema Management**: Drizzle Kit for migrations and schema management
 - **Key Entities**:
-  - Users (mandatory for Replit Auth with buyer/seller types)
+  - Users (5 account types: buyer, seller, dealer, importer, manufacturer; accountTypeSelected flag drives onboarding modal; contactPerson field for company contact)
   - Products (construction materials with categories, pricing, and seller relationships)
   - Categories (Steel, Iron, Construction with icon support)
   - Subscriptions (tiered access control)
@@ -39,13 +39,15 @@ Preferred communication style: Simple, everyday language.
 ## Authentication & Authorization
 - **Provider**: Replit OIDC with automatic user provisioning
 - **Session Management**: Secure HTTP-only cookies with PostgreSQL storage
-- **User Types**: Buyer and Seller roles with different feature access
+- **User Types**: Buyer (free) plus 4 seller-type roles (seller, dealer, importer, manufacturer) gated by subscription for product listing
 - **Protection**: Route-level authentication middleware with unauthorized error handling
 
 ## Key Features
 - **Product Marketplace**: Browse, search, and filter construction materials by category
 - **User Management**: Profile management with buyer/seller role switching
-- **Subscription System**: Premium tiers for enhanced features (payment integration placeholder)
+- **Subscription System**: Seller-type accounts get a 20-day free trial, then 990 ETB/month (or 9,900 ETB/year) to list products; buyers are free. Payment integration is a placeholder. Product creation returns 402 without an active subscription.
+- **Seller Storefronts**: Public pages at /seller/:id showing seller contact info (business name, contact person, phone, email, location) and active products; home page has Top Sellers / Top Importers / Top Manufacturers sections
+- **Product Listings**: Support discount price, specifications, and features fields shown on cards and detail pages
 - **Construction Calculators**: Metal weight and TMT steel calculations with result persistence
 - **Favorites System**: Product bookmarking for registered users
 - **Mobile-First UI**: Bottom navigation and responsive design optimized for mobile devices

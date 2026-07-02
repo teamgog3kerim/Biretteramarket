@@ -1,3 +1,4 @@
+import { isSellerType } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,7 +87,7 @@ function EmptyState({ icon: Icon, message }: { icon: typeof Package; message: st
 
 export default function Orders() {
   const { user } = useAuth();
-  const isSeller = user?.userType === "seller";
+  const isSeller = isSellerType(user?.userType);
 
   const { data: purchases = [], isLoading: purchasesLoading } = useQuery<PurchaseTransaction[]>({
     queryKey: ["/api/buyer/transactions"],

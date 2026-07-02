@@ -204,9 +204,13 @@ export default function ProductDetails() {
     }).format(num);
   };
 
-  const sellerName = product.seller?.firstName && product.seller?.lastName 
-    ? `${product.seller.firstName} ${product.seller.lastName}`
-    : product.seller?.email?.split('@')[0] || 'Unknown Seller';
+  const sellerName = product.seller?.businessName
+    || (product.seller?.firstName && product.seller?.lastName 
+      ? `${product.seller.firstName} ${product.seller.lastName}`
+      : product.seller?.email?.split('@')[0] || 'Unknown Seller');
+
+  const discountNum = product.discountPrice ? parseFloat(product.discountPrice) : NaN;
+  const hasDiscount = !isNaN(discountNum) && discountNum > 0 && discountNum < parseFloat(product.price);
 
   return (
     <div className="pb-20">
@@ -276,12 +280,23 @@ export default function ProductDetails() {
                 {product.name}
               </h1>
               
-              <div className="flex items-baseline mb-4">
-                <span className="text-3xl font-bold text-primary" data-testid="text-product-price">
-                  {formatCurrency(product.price)}
-                </span>
+              <div className="flex items-baseline mb-4 flex-wrap gap-x-2">
+                {hasDiscount ? (
+                  <>
+                    <span className="text-3xl font-bold text-primary" data-testid="text-product-price">
+                      {formatCurrency(product.discountPrice!)}
+                    </span>
+                    <span className="text-lg text-muted-foreground line-through">
+                      {formatCurrency(product.price)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold text-primary" data-testid="text-product-price">
+                    {formatCurrency(product.price)}
+                  </span>
+                )}
                 {product.unit && (
-                  <span className="text-muted-foreground ml-2">per {product.unit}</span>
+                  <span className="text-muted-foreground">per {product.unit}</span>
                 )}
               </div>
 
@@ -298,24 +313,30 @@ export default function ProductDetails() {
         <Card>
           <CardContent className="p-4">
             <h3 className="font-semibold mb-3">Product Features</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4 text-green-500" />
-                <span className="text-sm">Quality Assured</span>
+            {product.features ? (
+              <p className="text-sm whitespace-pre-line" data-testid="text-product-features">
+                {product.features}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Quality Assured</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Truck className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm">Fast Delivery</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <span className="text-sm">24/7 Support</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin className="h-4 w-4 text-red-500" />
+                  <span className="text-sm">Ethiopia Wide</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Truck className="h-4 w-4 text-blue-500" />
-                <span className="text-sm">Fast Delivery</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-orange-500" />
-                <span className="text-sm">24/7 Support</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="h-4 w-4 text-red-500" />
-                <span className="text-sm">Ethiopia Wide</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -339,28 +360,51 @@ export default function ProductDetails() {
                 <h4 className="font-medium" data-testid="text-seller-name">
                   {sellerName}
                 </h4>
-                <p className="text-sm text-muted-foreground">Construction materials specialist</p>
-                <div className="flex items-center mt-1">
-                  <div className="flex text-accent text-xs mr-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-current" />
-                    ))}
-                  </div>
-                  <span className="text-xs text-muted-foreground">4.9 (567 reviews)</span>
-                </div>
+                {product.seller?.contactPerson && (
+                  <p className="text-sm text-muted-foreground">Contact: {product.seller.contactPerson}</p>
+                )}
+                {product.seller?.location && (
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {product.seller.location}
+                  </p>
+                )}
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" size="sm" data-testid="button-contact-phone">
-                <Phone className="h-4 w-4 mr-2" />
-                Call Seller
-              </Button>
-              <Button variant="outline" size="sm" data-testid="button-contact-email">
-                <Mail className="h-4 w-4 mr-2" />
-                Email Seller
-              </Button>
+              {product.seller?.phone ? (
+                <a href={`tel:${product.seller.phone}`} className="w-full">
+                  <Button variant="outline" size="sm" className="w-full" data-testid="button-contact-phone">
+                    <Phone className="h-4 w-4 mr-2" />
+                    {product.seller.phone}
+                  </Button>
+                </a>
+              ) : (
+                <Button variant="outline" size="sm" disabled data-testid="button-contact-phone">
+                  <Phone className="h-4 w-4 mr-2" />
+                  No phone listed
+                </Button>
+              )}
+              {product.seller?.email ? (
+                <a href={`mailto:${product.seller.email}`} className="w-full">
+                  <Button variant="outline" size="sm" className="w-full" data-testid="button-contact-email">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Email Seller
+                  </Button>
+                </a>
+              ) : (
+                <Button variant="outline" size="sm" disabled data-testid="button-contact-email">
+                  <Mail className="h-4 w-4 mr-2" />
+                  No email listed
+                </Button>
+              )}
             </div>
+            <Link href={`/seller/${product.sellerId}`}>
+              <Button variant="link" className="w-full mt-2 text-primary" data-testid="link-view-seller-store">
+                View seller storefront
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -368,6 +412,11 @@ export default function ProductDetails() {
         <Card>
           <CardContent className="p-4">
             <h3 className="font-semibold mb-3">Specifications</h3>
+            {product.specifications && (
+              <p className="text-sm whitespace-pre-line mb-3" data-testid="text-product-specifications">
+                {product.specifications}
+              </p>
+            )}
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Category:</span>

@@ -23,7 +23,16 @@ import {
   BarChart3
 } from "lucide-react";
 import { Link } from "wouter";
+import { isSellerType, USER_TYPES } from "@shared/schema";
 import type { Product, User as UserType, Category, Favorite } from "@shared/schema";
+
+const TYPE_LABELS: Record<string, string> = {
+  buyer: "Buyer",
+  seller: "Seller",
+  dealer: "Dealer",
+  importer: "Importer",
+  manufacturer: "Manufacturer",
+};
 
 type ProductWithRelations = Product & { seller: UserType; category: Category };
 type FavoriteWithRelations = Favorite & { product: ProductWithRelations };
@@ -37,7 +46,7 @@ export default function Profile() {
 
   const { data: userProducts = [] } = useQuery<ProductWithRelations[]>({
     queryKey: ["/api/seller/products"],
-    enabled: user?.userType === "seller",
+    enabled: isSellerType(user?.userType),
   });
 
   const { data: favorites = [] } = useQuery<FavoriteWithRelations[]>({
@@ -165,7 +174,7 @@ export default function Profile() {
                 <p className="text-sm text-muted-foreground" data-testid="text-user-email">
                   {user?.email || "No email"}
                 </p>
-                {user?.userType === 'seller' && user?.businessName && (
+                {isSellerType(user?.userType) && user?.businessName && (
                   <p className="text-sm font-medium" data-testid="text-business-name">
                     {user.businessName}
                   </p>
@@ -181,8 +190,8 @@ export default function Profile() {
                   </p>
                 )}
                 <div className="flex items-center mt-1 space-x-2">
-                  <Badge variant={user?.userType === 'seller' ? 'default' : 'secondary'}>
-                    {user?.userType === 'seller' ? 'Seller' : 'Buyer'}
+                  <Badge variant={isSellerType(user?.userType) ? 'default' : 'secondary'}>
+                    {TYPE_LABELS[user?.userType || 'buyer'] || 'Buyer'}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2024'}
@@ -202,26 +211,25 @@ export default function Profile() {
             {/* User Type Switcher */}
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-sm font-medium mb-2">Account Type:</p>
-              <div className="flex space-x-2">
-                <Button
-                  variant={user?.userType === 'buyer' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => updateUserType.mutate('buyer')}
-                  disabled={updateUserType.isPending}
-                  data-testid="button-switch-buyer"
-                >
-                  Buyer
-                </Button>
-                <Button
-                  variant={user?.userType === 'seller' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => updateUserType.mutate('seller')}
-                  disabled={updateUserType.isPending}
-                  data-testid="button-switch-seller"
-                >
-                  Seller
-                </Button>
+              <div className="flex flex-wrap gap-2">
+                {USER_TYPES.map((type) => (
+                  <Button
+                    key={type}
+                    variant={user?.userType === type ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => updateUserType.mutate(type)}
+                    disabled={updateUserType.isPending}
+                    data-testid={`button-switch-${type}`}
+                  >
+                    {TYPE_LABELS[type]}
+                  </Button>
+                ))}
               </div>
+              {isSellerType(user?.userType) && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Seller accounts get a 20-day free trial, then 990 ETB/month to list products.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -282,7 +290,7 @@ export default function Profile() {
         )}
 
         {/* Seller Dashboard (Sellers only) */}
-        {user?.userType === 'seller' && (
+        {isSellerType(user?.userType) && (
           <Card className="mb-4 bg-gradient-to-r from-primary to-secondary text-white">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -312,7 +320,7 @@ export default function Profile() {
         {/* Menu Options */}
         <div className="space-y-1">
           {/* My Products (Sellers only) */}
-          {user?.userType === 'seller' && (
+          {isSellerType(user?.userType) && (
             <Link href="/seller-dashboard">
               <Button
                 variant="ghost"

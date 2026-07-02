@@ -33,9 +33,10 @@ import {
   type InsertPriceHistory,
   type PaymentMethod,
   type InsertPaymentMethod,
+  SELLER_TYPES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, like, or, sql, gte, lte, count } from "drizzle-orm";
+import { eq, desc, and, like, or, sql, gte, lte, count, inArray } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -63,6 +64,7 @@ export interface IStorage {
   
   // Subscription operations
   getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  getLatestSubscription(userId: string): Promise<Subscription | undefined>;
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   updateSubscription(id: string, subscription: Partial<InsertSubscription>): Promise<Subscription>;
   
@@ -76,7 +78,7 @@ export interface IStorage {
   createCalculation(calculation: InsertCalculation): Promise<Calculation>;
   
   // Seller operations
-  getTopSellers(limit?: number): Promise<(User & { productCount: number })[]>;
+  getTopSellers(limit?: number, sellerType?: string): Promise<(User & { productCount: number })[]>;
   
   // Market report operations
   createMarketReport(report: InsertMarketReport): Promise<MarketReport>;
@@ -246,6 +248,9 @@ export class DatabaseStorage implements IStorage {
         name: products.name,
         description: products.description,
         price: products.price,
+        discountPrice: products.discountPrice,
+        specifications: products.specifications,
+        features: products.features,
         unit: products.unit,
         imageUrl: products.imageUrl,
         quantityAvailable: products.quantityAvailable,
@@ -283,6 +288,9 @@ export class DatabaseStorage implements IStorage {
         name: products.name,
         description: products.description,
         price: products.price,
+        discountPrice: products.discountPrice,
+        specifications: products.specifications,
+        features: products.features,
         unit: products.unit,
         imageUrl: products.imageUrl,
         quantityAvailable: products.quantityAvailable,
@@ -338,6 +346,16 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(subscriptions)
       .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+    return subscription;
+  }
+
+  async getLatestSubscription(userId: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
       .orderBy(desc(subscriptions.createdAt))
       .limit(1);
     return subscription;
@@ -424,7 +442,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Seller operations
-  async getTopSellers(limit = 10): Promise<(User & { productCount: number })[]> {
+  async getTopSellers(limit = 10, sellerType?: string): Promise<(User & { productCount: number })[]> {
+    const typeFilter = sellerType
+      ? eq(users.userType, sellerType)
+      : inArray(users.userType, [...SELLER_TYPES]);
     return await db
       .select({
         id: users.id,
@@ -436,13 +457,15 @@ export class DatabaseStorage implements IStorage {
         location: users.location,
         businessName: users.businessName,
         userType: users.userType,
+        contactPerson: users.contactPerson,
+        accountTypeSelected: users.accountTypeSelected,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         productCount: sql<number>`count(${products.id})::int`,
       })
       .from(users)
       .leftJoin(products, and(eq(users.id, products.sellerId), eq(products.active, true)))
-      .where(eq(users.userType, "seller"))
+      .where(typeFilter)
       .groupBy(users.id)
       .orderBy(desc(sql`count(${products.id})`))
       .limit(limit);
@@ -765,6 +788,9 @@ export class DatabaseStorage implements IStorage {
         name: products.name,
         categoryName: categories.name,
         price: products.price,
+        discountPrice: products.discountPrice,
+        specifications: products.specifications,
+        features: products.features,
         unit: products.unit,
         quantityAvailable: products.quantityAvailable,
         views7d: sql<number>`(select count(*) from ${productViews} pv where pv.product_id = ${products.id} and pv.viewed_at >= ${days7})::int`,
@@ -922,6 +948,9 @@ export class DatabaseStorage implements IStorage {
         name: products.name,
         description: products.description,
         price: products.price,
+        discountPrice: products.discountPrice,
+        specifications: products.specifications,
+        features: products.features,
         unit: products.unit,
         imageUrl: products.imageUrl,
         quantityAvailable: products.quantityAvailable,
