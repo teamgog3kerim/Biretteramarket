@@ -1,39 +1,52 @@
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { Crown, Check } from "lucide-react";
+import { Check, Upload, Clock, ArrowLeft, ImageIcon, XCircle } from "lucide-react";
+import type { Subscription } from "@shared/schema";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
 export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly" | null>(null);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
-  const createSubscription = useMutation({
-    mutationFn: async (planType: string) => {
-      await apiRequest("POST", "/api/subscription", { 
-        planType,
-        status: "active"
+  const { data: latestSubscription } = useQuery<Subscription | null>({
+    queryKey: ["/api/subscription/latest"],
+    enabled: isOpen,
+  });
+
+  const startFreeTrial = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/subscription", {
+        planType: "free_trial",
+        status: "active",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/latest"] });
       toast({
-        title: "Subscription Created",
-        description: "Your subscription has been activated successfully",
+        title: "Free Trial Started",
+        description: "Your 20-day free trial is now active",
       });
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -47,15 +60,57 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
       }
       toast({
         title: "Error",
-        description: "Failed to create subscription. Payment integration coming soon!",
+        description: error?.message?.replace(/^\d+:\s*/, "") || "Failed to start free trial",
         variant: "destructive",
       });
     },
   });
 
+  const submitPayment = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/subscription/submit-payment", {
+        planType: selectedPlan,
+        receiptImage,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/latest"] });
+      setSelectedPlan(null);
+      setReceiptImage(null);
+      toast({
+        title: "Payment Submitted",
+        description: "Your receipt has been sent for review. You'll be notified once it's approved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message?.replace(/^\d+:\s*/, "") || "Failed to submit payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image (screenshot)", variant: "destructive" });
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      toast({ title: "File too large", description: "Please upload an image under 5MB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setReceiptImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const plans = [
     {
-      id: "free_trial",
+      id: "free_trial" as const,
       name: "Free Trial",
       price: "Free",
       duration: "20 days",
@@ -69,7 +124,7 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
       badgeVariant: "secondary" as const,
     },
     {
-      id: "monthly",
+      id: "monthly" as const,
       name: "Monthly Premium",
       price: "ETB 990",
       duration: "per month",
@@ -84,8 +139,8 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
       popular: true,
     },
     {
-      id: "yearly",
-      name: "Yearly Premium", 
+      id: "yearly" as const,
+      name: "Yearly Premium",
       price: "ETB 9,900",
       duration: "per year",
       originalPrice: "ETB 11,880",
@@ -100,101 +155,192 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
     },
   ];
 
-  const paymentMethods = [
-    { name: "CBE Birr", icon: "fas fa-university", description: "Commercial Bank of Ethiopia" },
-    { name: "Dashen", icon: "fas fa-mobile-alt", description: "Dashen Bank Mobile" },
-    { name: "Awash", icon: "fas fa-credit-card", description: "Awash Bank Card" },
-  ];
+  const isPending = latestSubscription?.status === "pending";
+  const isRejected = latestSubscription?.status === "rejected";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md mx-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-center">Choose Your Plan</DialogTitle>
+          <DialogTitle className="text-center">
+            {isPending
+              ? "Payment Under Review"
+              : selectedPlan
+                ? "Submit Your Payment"
+                : "Choose Your Plan"}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Plans */}
-          {plans.map((plan) => (
-            <Card 
-              key={plan.id}
-              className={`relative ${plan.popular ? 'ring-2 ring-accent' : ''}`}
+        {isPending ? (
+          <div className="text-center space-y-4 py-6" data-testid="status-pending-approval">
+            <div className="mx-auto w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
+              <Clock className="h-8 w-8 text-accent" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Waiting for Approval</h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                Your payment receipt has been submitted and is being reviewed by our team.
+                You'll receive a Telegram notification once your subscription is approved.
+              </p>
+            </div>
+            <Button variant="outline" onClick={onClose} data-testid="button-close-pending">
+              Close
+            </Button>
+          </div>
+        ) : selectedPlan ? (
+          <div className="space-y-4">
+            <button
+              onClick={() => { setSelectedPlan(null); setReceiptImage(null); }}
+              className="flex items-center text-sm text-muted-foreground"
+              data-testid="button-back-to-plans"
             >
-              {plan.badge && (
-                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                  <Badge variant={plan.badgeVariant} className="px-3 py-1">
-                    {plan.badge}
-                  </Badge>
-                </div>
-              )}
-              
-              <CardContent className="p-4">
-                <div className="text-center mb-4">
-                  <h3 className="font-bold text-lg">{plan.name}</h3>
-                  <div className="mt-2">
-                    <span className="text-2xl font-bold text-primary">{plan.price}</span>
-                    <span className="text-sm text-muted-foreground ml-1">{plan.duration}</span>
-                  </div>
-                  {plan.originalPrice && (
-                    <div className="mt-1">
-                      <span className="text-sm line-through text-muted-foreground">{plan.originalPrice}</span>
-                      <span className="text-sm text-accent font-medium ml-2">{plan.savings}</span>
-                    </div>
-                  )}
-                </div>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to plans
+            </button>
 
-                <div className="space-y-2 mb-4">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-accent mr-2 flex-shrink-0" />
-                      {feature}
-                    </div>
-                  ))}
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="text-center">
+                  <h3 className="font-bold">
+                    {selectedPlan === "monthly" ? "Monthly Premium — ETB 990" : "Yearly Premium — ETB 9,900"}
+                  </h3>
                 </div>
-
-                <Button
-                  onClick={() => createSubscription.mutate(plan.id)}
-                  disabled={createSubscription.isPending}
-                  className={`w-full ${
-                    plan.popular 
-                      ? "bg-accent text-accent-foreground hover:bg-accent/90" 
-                      : ""
-                  }`}
-                  variant={plan.id === "free_trial" ? "outline" : "default"}
-                  data-testid={`button-select-${plan.id}`}
-                >
-                  {createSubscription.isPending ? "Processing..." : plan.buttonText}
-                </Button>
+                <div className="text-sm space-y-2 bg-muted rounded-lg p-3">
+                  <p className="font-medium">How to pay:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Transfer {selectedPlan === "monthly" ? "990 ETB" : "9,900 ETB"} using CBE Birr, Telebirr, or bank transfer</li>
+                    <li>Take a screenshot of the payment confirmation</li>
+                    <li>Upload the screenshot below and submit</li>
+                  </ol>
+                </div>
               </CardContent>
             </Card>
-          ))}
 
-          {/* Payment Methods */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-medium mb-3 flex items-center">
-                <Crown className="h-4 w-4 mr-2" />
-                Payment Methods
-              </h3>
-              <div className="grid grid-cols-3 gap-2">
-                {paymentMethods.map((method) => (
-                  <Button
-                    key={method.name}
-                    variant="outline"
-                    className="flex flex-col p-3 h-auto space-y-1"
-                    data-testid={`button-payment-${method.name.toLowerCase().replace(' ', '-')}`}
-                  >
-                    <i className={`${method.icon} text-secondary text-lg`}></i>
-                    <span className="text-xs font-medium">{method.name}</span>
-                  </Button>
-                ))}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+              data-testid="input-receipt-file"
+            />
+
+            {receiptImage ? (
+              <div className="space-y-2">
+                <div className="relative rounded-lg overflow-hidden border">
+                  <img src={receiptImage} alt="Payment receipt" className="w-full max-h-64 object-contain bg-muted" data-testid="img-receipt-preview" />
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  data-testid="button-change-receipt"
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" /> Change Screenshot
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Payment integration with Ethiopian banks coming soon
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                data-testid="button-upload-receipt"
+              >
+                <Upload className="h-8 w-8 mb-2" />
+                <span className="text-sm font-medium">Upload payment receipt screenshot</span>
+                <span className="text-xs mt-1">PNG or JPG, max 5MB</span>
+              </button>
+            )}
+
+            <Button
+              className="w-full"
+              disabled={!receiptImage || submitPayment.isPending}
+              onClick={() => submitPayment.mutate()}
+              data-testid="button-submit-payment"
+            >
+              {submitPayment.isPending ? "Submitting..." : "Submit for Approval"}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {isRejected && (
+              <Card className="border-destructive">
+                <CardContent className="p-4 flex items-start space-x-3">
+                  <XCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-destructive">Previous payment was rejected</p>
+                    <p className="text-muted-foreground mt-1">
+                      Your last receipt could not be verified. Please check your payment and submit a new screenshot.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {plans.map((plan) => (
+              <Card
+                key={plan.id}
+                className={`relative ${plan.popular ? "ring-2 ring-accent" : ""}`}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                    <Badge variant={plan.badgeVariant} className="px-3 py-1">
+                      {plan.badge}
+                    </Badge>
+                  </div>
+                )}
+
+                <CardContent className="p-4">
+                  <div className="text-center mb-4">
+                    <h3 className="font-bold text-lg">{plan.name}</h3>
+                    <div className="mt-2">
+                      <span className="text-2xl font-bold text-primary">{plan.price}</span>
+                      <span className="text-sm text-muted-foreground ml-1">{plan.duration}</span>
+                    </div>
+                    {plan.originalPrice && (
+                      <div className="mt-1">
+                        <span className="text-sm line-through text-muted-foreground">{plan.originalPrice}</span>
+                        <span className="text-sm text-accent font-medium ml-2">{plan.savings}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    {plan.features.map((feature, index) => (
+                      <div key={index} className="flex items-center text-sm">
+                        <Check className="h-4 w-4 text-accent mr-2 flex-shrink-0" />
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      if (plan.id === "free_trial") {
+                        startFreeTrial.mutate();
+                      } else {
+                        setSelectedPlan(plan.id);
+                      }
+                    }}
+                    disabled={startFreeTrial.isPending}
+                    className={`w-full ${
+                      plan.popular
+                        ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                        : ""
+                    }`}
+                    variant={plan.id === "free_trial" ? "outline" : "default"}
+                    data-testid={`button-select-${plan.id}`}
+                  >
+                    {plan.id === "free_trial" && startFreeTrial.isPending ? "Processing..." : plan.buttonText}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+
+            <p className="text-xs text-muted-foreground text-center">
+              Pay via CBE Birr, Telebirr, or bank transfer, then upload your receipt.
+              Your subscription activates after admin approval.
+            </p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

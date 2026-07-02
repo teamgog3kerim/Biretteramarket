@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Primary Database**: PostgreSQL with Neon serverless driver
 - **Schema Management**: Drizzle Kit for migrations and schema management
 - **Key Entities**:
-  - Users (5 account types: buyer, seller, dealer, importer, manufacturer; accountTypeSelected flag drives onboarding modal; contactPerson field for company contact)
+  - Users (5 account types: buyer, seller, dealer, importer, manufacturer; accountTypeSelected flag drives onboarding modal; contactPerson field for company contact; telegramUsername, isAdmin, and status 'active'/'suspended' fields for admin system)
   - Products (construction materials with categories, pricing, and seller relationships)
   - Categories (Steel, Iron, Construction with icon support)
   - Subscriptions (tiered access control)
@@ -45,7 +45,8 @@ Preferred communication style: Simple, everyday language.
 ## Key Features
 - **Product Marketplace**: Browse, search, and filter construction materials by category
 - **User Management**: Profile management with buyer/seller role switching
-- **Subscription System**: Seller-type accounts get a 20-day free trial, then 990 ETB/month (or 9,900 ETB/year) to list products; buyers are free. Payment integration is a placeholder. Product creation returns 402 without an active subscription.
+- **Subscription System**: Seller-type accounts get a 20-day free trial, then 990 ETB/month (or 9,900 ETB/year) to list products; buyers are free. Product creation returns 402 without an active subscription. Paid plans require manual payment: user uploads a payment receipt screenshot (base64, max 5MB) via POST /api/subscription/submit-payment which creates a 'pending' subscription; POST /api/subscription only self-activates free trials.
+- **Admin System**: Telegram user @eximmantech is auto-granted admin on login (telegramAuth upserts telegramUsername and sets isAdmin, never demotes). /admin page (gated by user.isAdmin, linked from Profile) has Overview stats, Users tab (search, change type, suspend/activate, grant/revoke admin), and Payments tab (view receipts, approve/reject pending subscriptions). Admin routes under /api/admin/* use an isAdmin middleware. Approve sets status active + endDate (30/365 days); reject sets 'rejected'. Admins get Telegram bot notifications on new payment submissions; users get notified on approve/reject. Suspended users are blocked from write actions via notSuspended middleware.
 - **Seller Storefronts**: Public pages at /seller/:id showing seller contact info (business name, contact person, phone, email, location) and active products; home page has Top Sellers / Top Importers / Top Manufacturers sections
 - **Product Listings**: Support discount price, specifications, and features fields shown on cards and detail pages
 - **Construction Calculators**: Metal weight and TMT steel calculations with result persistence

@@ -20,7 +20,8 @@ import {
   HelpCircle, 
   Languages, 
   LogOut,
-  BarChart3
+  BarChart3,
+  Shield
 } from "lucide-react";
 import { Link } from "wouter";
 import { isSellerType, USER_TYPES } from "@shared/schema";
@@ -375,6 +376,23 @@ export default function Profile() {
               </div>
             </Button>
           </Link>
+
+          {/* Admin Panel */}
+          {user?.isAdmin && (
+            <Link href="/admin">
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-between p-3 h-auto"
+                data-testid="button-admin-panel"
+              >
+                <div className="flex items-center space-x-3">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <span className="flex-1 text-left font-medium">Admin Panel</span>
+                </div>
+                <i className="fas fa-chevron-right text-muted-foreground text-sm"></i>
+              </Button>
+            </Link>
+          )}
 
           {/* Settings */}
           <Link href="/settings">

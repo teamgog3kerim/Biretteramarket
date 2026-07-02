@@ -20,6 +20,7 @@ import MarketAnalysis from "@/pages/market-analysis";
 import SellerDashboard from "@/pages/seller-dashboard";
 import ProductDetails from "@/pages/product-details";
 import SellerPage from "@/pages/seller-page";
+import AdminPage from "@/pages/admin";
 import BottomNavigation from "@/components/bottom-navigation";
 import AccountTypeModal from "@/components/account-type-modal";
 import WelcomeModal from "@/components/welcome-modal";
@@ -73,6 +74,7 @@ function Router() {
             <Route path="/seller-dashboard" component={SellerDashboard} />
             <Route path="/product/:id" component={ProductDetails} />
             <Route path="/seller/:id" component={SellerPage} />
+            <Route path="/admin" component={AdminPage} />
           </>
         )}
         <Route component={NotFound} />

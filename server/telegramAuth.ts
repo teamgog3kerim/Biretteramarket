@@ -85,12 +85,19 @@ export function setupTelegramAuth(app: Express) {
 
     const userId = `telegram:${tgUser.id}`;
 
+    // @eximmantech is automatically granted full admin access
+    const isAdminUsername =
+      (tgUser.username ?? "").toLowerCase() === "eximmantech";
+
     await storage.upsertUser({
       id: userId,
       email: null,
       firstName: tgUser.first_name ?? null,
       lastName: tgUser.last_name ?? null,
       profileImageUrl: tgUser.photo_url ?? null,
+      telegramUsername: tgUser.username ?? null,
+      // Never pass false so manually-granted admins are not demoted on login
+      ...(isAdminUsername ? { isAdmin: true } : {}),
     });
 
     const sessionUser = {
@@ -111,4 +118,48 @@ export function setupTelegramAuth(app: Express) {
       res.json({ success: true });
     });
   });
+}
+
+async function sendTelegramMessage(chatId: string, text: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return;
+  try {
+    const resp = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text }),
+      },
+    );
+    if (!resp.ok) {
+      console.error(
+        `Failed to send Telegram message to ${chatId}:`,
+        await resp.text(),
+      );
+    }
+  } catch (err) {
+    console.error(`Failed to send Telegram message to ${chatId}:`, err);
+  }
+}
+
+// Send a notification to every admin who signed in via Telegram
+export async function notifyAdminsOnTelegram(text: string) {
+  try {
+    const admins = await storage.getAdminUsers();
+    const telegramAdmins = admins.filter((a) => a.id.startsWith("telegram:"));
+    await Promise.allSettled(
+      telegramAdmins.map((admin) =>
+        sendTelegramMessage(admin.id.replace("telegram:", ""), text),
+      ),
+    );
+  } catch (err) {
+    console.error("Failed to notify admins on Telegram:", err);
+  }
+}
+
+// Send a notification to a specific user if they signed in via Telegram
+export async function notifyUserOnTelegram(userId: string, text: string) {
+  if (!userId.startsWith("telegram:")) return;
+  await sendTelegramMessage(userId.replace("telegram:", ""), text);
 }

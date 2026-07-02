@@ -2,13 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { setupTelegramAuth } from "./telegramAuth";
+import { setupTelegramAuth, notifyAdminsOnTelegram, notifyUserOnTelegram } from "./telegramAuth";
 import { initializeMarketReporting } from "./marketReports";
 import { initializeSampleData } from "./seedTransactions";
 import { 
   insertProductSchema, 
   insertCategorySchema, 
-  insertSubscriptionSchema, 
   insertFavoriteSchema, 
   insertCalculationSchema,
   insertMarketReportSchema,
@@ -46,6 +45,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize sample data for development
   await initializeSampleData();
+
+  // Blocks suspended accounts from performing write actions
+  const notSuspended = async (req: any, res: any, next: any) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.status === 'suspended') {
+        return res.status(403).json({ message: "Your account has been suspended. Please contact support." });
+      }
+      next();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify account status" });
+    }
+  };
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -106,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/products', isAuthenticated, async (req: any, res) => {
+  app.post('/api/products', isAuthenticated, notSuspended, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -144,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/products/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/products/:id', isAuthenticated, notSuspended, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const product = await storage.getProduct(req.params.id);
@@ -160,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/products/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/products/:id', isAuthenticated, notSuspended, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const product = await storage.getProduct(req.params.id);
@@ -239,51 +251,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/subscription', isAuthenticated, async (req: any, res) => {
+  // Only free trials can be self-activated. Paid plans must go through
+  // /api/subscription/submit-payment and be approved by an admin.
+  app.post('/api/subscription', isAuthenticated, notSuspended, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertSubscriptionSchema.parse({
-        ...req.body,
-        userId,
-      });
+      const planType = req.body?.planType;
+
+      if (planType !== 'free_trial') {
+        return res.status(400).json({
+          message: "Paid plans require payment verification. Please submit your payment receipt for approval.",
+        });
+      }
 
       // Only one free trial per account
-      if (validatedData.planType === 'free_trial') {
-        const previous = await storage.getLatestSubscription(userId);
-        if (previous) {
-          return res.status(400).json({ message: "Free trial already used. Please subscribe to continue." });
-        }
+      const previous = await storage.getLatestSubscription(userId);
+      if (previous) {
+        return res.status(400).json({ message: "Free trial already used. Please subscribe to continue." });
       }
 
-      // Set end date based on plan type
       const now = new Date();
-      let endDate: Date;
-      
-      switch (validatedData.planType) {
-        case 'free_trial':
-          endDate = new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000); // 20 days
-          break;
-        case 'monthly':
-          endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
-          break;
-        case 'yearly':
-          endDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 365 days
-          break;
-        default:
-          endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      }
+      const endDate = new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000); // 20 days
 
       const subscription = await storage.createSubscription({
-        ...validatedData,
+        userId,
+        planType: 'free_trial',
+        status: 'active',
         endDate,
       });
       
       res.status(201).json(subscription);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid subscription data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  // Latest subscription regardless of status (used to show pending/rejected states)
+  app.get('/api/subscription/latest', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscription = await storage.getLatestSubscription(userId);
+      res.json(subscription ?? null);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription" });
+    }
+  });
+
+  // Submit a payment receipt for admin approval
+  app.post('/api/subscription/submit-payment', isAuthenticated, notSuspended, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { planType, receiptImage } = req.body ?? {};
+
+      if (!['monthly', 'yearly'].includes(planType)) {
+        return res.status(400).json({ message: "Invalid plan type" });
+      }
+      if (typeof receiptImage !== 'string' || !receiptImage.startsWith('data:image/')) {
+        return res.status(400).json({ message: "Please upload a screenshot of your payment receipt" });
+      }
+      if (receiptImage.length > 7_000_000) {
+        return res.status(400).json({ message: "Receipt image is too large. Please upload an image under 5MB." });
+      }
+
+      const latest = await storage.getLatestSubscription(userId);
+      if (latest && latest.status === 'pending') {
+        return res.status(400).json({ message: "You already have a payment awaiting approval" });
+      }
+
+      const subscription = await storage.createSubscription({
+        userId,
+        planType,
+        status: 'pending',
+        receiptImage,
+        endDate: null,
+      });
+
+      const user = await storage.getUser(userId);
+      const name = user?.businessName
+        || [user?.firstName, user?.lastName].filter(Boolean).join(' ')
+        || userId;
+      const planLabel = planType === 'monthly' ? 'Monthly (990 ETB)' : 'Yearly (9,900 ETB)';
+      notifyAdminsOnTelegram(
+        `🔔 New subscription payment submitted\n\n👤 User: ${name}${user?.telegramUsername ? ` (@${user.telegramUsername})` : ''}\n📋 Plan: ${planLabel}\n\nOpen Biret Tera → Admin → Subscriptions to review the receipt and approve.`
+      );
+
+      res.status(201).json(subscription);
+    } catch (error) {
+      console.error("Failed to submit payment:", error);
+      res.status(500).json({ message: "Failed to submit payment" });
+    }
+  });
+
+  // Admin middleware — requires an authenticated user with isAdmin
+  const isAdmin = async (req: any, res: any, next: any) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      next();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify admin access" });
+    }
+  };
+
+  // Admin routes
+  app.get('/api/admin/stats', isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const usersList = await storage.getAllUsersWithSubscription();
+      res.json(usersList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  const adminUserUpdateSchema = z.object({
+    status: z.enum(['active', 'suspended']).optional(),
+    userType: userTypeSchema.optional(),
+    isAdmin: z.boolean().optional(),
+  });
+
+  app.patch('/api/admin/users/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const fields = adminUserUpdateSchema.parse(req.body);
+      if (Object.keys(fields).length === 0) {
+        return res.status(400).json({ message: "No fields to update" });
+      }
+      // Prevent admins from removing their own admin access
+      if (fields.isAdmin === false && req.params.id === req.user.claims.sub) {
+        return res.status(400).json({ message: "You cannot remove your own admin access" });
+      }
+      const user = await storage.updateUserAdminFields(req.params.id, fields);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.get('/api/admin/subscriptions', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = typeof req.query.status === 'string' && req.query.status ? req.query.status : undefined;
+      const subs = await storage.getSubscriptionsWithUser(status);
+      res.json(subs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.post('/api/admin/subscriptions/:id/approve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const subscription = await storage.getSubscriptionById(req.params.id);
+      if (!subscription) {
+        return res.status(404).json({ message: "Subscription not found" });
+      }
+      if (subscription.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending subscriptions can be approved" });
+      }
+
+      const now = new Date();
+      const days = subscription.planType === 'yearly' ? 365 : 30;
+      const endDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+      const updated = await storage.updateSubscription(subscription.id, {
+        status: 'active',
+        startDate: now,
+        endDate,
+      });
+
+      notifyUserOnTelegram(
+        subscription.userId,
+        `✅ Your Biret Tera subscription has been approved!\n\nPlan: ${subscription.planType === 'yearly' ? 'Yearly Premium' : 'Monthly Premium'}\nValid until: ${endDate.toDateString()}\n\nYou can now list your products. Thank you!`
+      );
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to approve subscription:", error);
+      res.status(500).json({ message: "Failed to approve subscription" });
+    }
+  });
+
+  app.post('/api/admin/subscriptions/:id/reject', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const subscription = await storage.getSubscriptionById(req.params.id);
+      if (!subscription) {
+        return res.status(404).json({ message: "Subscription not found" });
+      }
+      if (subscription.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending subscriptions can be rejected" });
+      }
+
+      const updated = await storage.updateSubscription(subscription.id, {
+        status: 'rejected',
+      });
+
+      notifyUserOnTelegram(
+        subscription.userId,
+        `❌ Your Biret Tera subscription payment could not be verified.\n\nPlease check your payment receipt and submit it again, or contact support.`
+      );
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to reject subscription:", error);
+      res.status(500).json({ message: "Failed to reject subscription" });
     }
   });
 

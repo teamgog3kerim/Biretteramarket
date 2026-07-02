@@ -3,3 +3,4 @@
 - [Single-default flag management](default-flag-management.md) — "set default" must verify target ownership before clearing existing defaults, or an invalid id leaves the user with none.
 - [Category hierarchy conventions](category-hierarchy.md) — 3-level tree via parent_id; filter with descendants, analytics roll up to root, never raw category_id equality.
 - [Telegram Mini App UI constraints](telegram-miniapp-ui.md) — pin dialog action buttons (swipe-gesture conflict traps users); old Android webviews lack dvh, need vh fallback.
+- [Subscription approval flow](subscription-approval-flow.md) — paid plans must never self-activate; server assigns status; notSuspended guards writes; prod DB needs schema sync on deploy.

@@ -40,6 +40,9 @@ export const users = pgTable("users", {
   userType: varchar("user_type").default("buyer"), // 'buyer', 'seller', 'dealer', 'importer', 'manufacturer'
   accountTypeSelected: boolean("account_type_selected").default(false),
   contactPerson: varchar("contact_person"),
+  telegramUsername: varchar("telegram_username"),
+  isAdmin: boolean("is_admin").default(false),
+  status: varchar("status").default("active"), // 'active', 'suspended'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -80,7 +83,8 @@ export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
   planType: varchar("plan_type").notNull(), // 'free_trial', 'monthly', 'yearly'
-  status: varchar("status").default("active"), // 'active', 'expired', 'cancelled'
+  status: varchar("status").default("active"), // 'pending', 'active', 'expired', 'cancelled', 'rejected'
+  receiptImage: text("receipt_image"), // base64 data URL of the payment receipt screenshot
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
   createdAt: timestamp("created_at").defaultNow(),

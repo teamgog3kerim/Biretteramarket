@@ -67,6 +67,14 @@ export interface IStorage {
   getLatestSubscription(userId: string): Promise<Subscription | undefined>;
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   updateSubscription(id: string, subscription: Partial<InsertSubscription>): Promise<Subscription>;
+  getSubscriptionById(id: string): Promise<Subscription | undefined>;
+
+  // Admin operations
+  getAdminStats(): Promise<{ totalUsers: number; totalSellers: number; totalProducts: number; pendingSubscriptions: number; activeSubscriptions: number }>;
+  getAllUsersWithSubscription(): Promise<(User & { subscription: Subscription | null; productCount: number })[]>;
+  getSubscriptionsWithUser(status?: string): Promise<(Subscription & { user: User })[]>;
+  getAdminUsers(): Promise<User[]>;
+  updateUserAdminFields(id: string, fields: { status?: string; userType?: string; isAdmin?: boolean }): Promise<User>;
   
   // Favorites operations
   getUserFavorites(userId: string): Promise<(Favorite & { product: Product & { seller: User; category: Category } })[]>;
@@ -378,6 +386,97 @@ export class DatabaseStorage implements IStorage {
     return updatedSubscription;
   }
 
+  async getSubscriptionById(id: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id));
+    return subscription;
+  }
+
+  // Admin operations
+  async getAdminStats(): Promise<{ totalUsers: number; totalSellers: number; totalProducts: number; pendingSubscriptions: number; activeSubscriptions: number }> {
+    const [totalUsers] = await db.select({ value: count() }).from(users);
+    const [totalSellers] = await db
+      .select({ value: count() })
+      .from(users)
+      .where(inArray(users.userType, [...SELLER_TYPES]));
+    const [totalProducts] = await db
+      .select({ value: count() })
+      .from(products)
+      .where(eq(products.active, true));
+    const [pendingSubscriptions] = await db
+      .select({ value: count() })
+      .from(subscriptions)
+      .where(eq(subscriptions.status, "pending"));
+    const [activeSubscriptions] = await db
+      .select({ value: count() })
+      .from(subscriptions)
+      .where(eq(subscriptions.status, "active"));
+    return {
+      totalUsers: totalUsers.value,
+      totalSellers: totalSellers.value,
+      totalProducts: totalProducts.value,
+      pendingSubscriptions: pendingSubscriptions.value,
+      activeSubscriptions: activeSubscriptions.value,
+    };
+  }
+
+  async getAllUsersWithSubscription(): Promise<(User & { subscription: Subscription | null; productCount: number })[]> {
+    const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
+    const allSubs = await db
+      .select({
+        id: subscriptions.id,
+        userId: subscriptions.userId,
+        planType: subscriptions.planType,
+        status: subscriptions.status,
+        startDate: subscriptions.startDate,
+        endDate: subscriptions.endDate,
+        createdAt: subscriptions.createdAt,
+      })
+      .from(subscriptions)
+      .orderBy(desc(subscriptions.createdAt));
+    const productCounts = await db
+      .select({ sellerId: products.sellerId, cnt: count() })
+      .from(products)
+      .where(eq(products.active, true))
+      .groupBy(products.sellerId);
+
+    const countMap = new Map(productCounts.map((p) => [p.sellerId, Number(p.cnt)]));
+    const subMap = new Map<string, Subscription>();
+    for (const s of allSubs) {
+      if (!subMap.has(s.userId)) subMap.set(s.userId, { ...s, receiptImage: null });
+    }
+    return allUsers.map((u) => ({
+      ...u,
+      subscription: subMap.get(u.id) ?? null,
+      productCount: countMap.get(u.id) ?? 0,
+    }));
+  }
+
+  async getSubscriptionsWithUser(status?: string): Promise<(Subscription & { user: User })[]> {
+    const rows = await db
+      .select({ subscription: subscriptions, user: users })
+      .from(subscriptions)
+      .innerJoin(users, eq(subscriptions.userId, users.id))
+      .where(status ? eq(subscriptions.status, status) : undefined)
+      .orderBy(desc(subscriptions.createdAt));
+    return rows.map((r) => ({ ...r.subscription, user: r.user }));
+  }
+
+  async getAdminUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isAdmin, true));
+  }
+
+  async updateUserAdminFields(id: string, fields: { status?: string; userType?: string; isAdmin?: boolean }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ ...fields, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
   // Favorites operations
   async getUserFavorites(userId: string): Promise<(Favorite & { product: Product & { seller: User; category: Category } })[]> {
     const results = await db
@@ -459,6 +558,9 @@ export class DatabaseStorage implements IStorage {
         userType: users.userType,
         contactPerson: users.contactPerson,
         accountTypeSelected: users.accountTypeSelected,
+        telegramUsername: users.telegramUsername,
+        isAdmin: users.isAdmin,
+        status: users.status,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         productCount: sql<number>`count(${products.id})::int`,
