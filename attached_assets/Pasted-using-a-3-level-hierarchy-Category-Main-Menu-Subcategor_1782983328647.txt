@@ -1,0 +1,398 @@
+using a 3-level hierarchy:
+
+Category (Main Menu)
+Subcategory
+Product Type
+1. Steel & Iron
+
+This will probably become your largest category.
+
+Reinforcement Steel
+Deformed Bars (Rebar)
+Plain Bars
+Coil Rebar
+Wire Rod
+Structural Steel
+I Beams
+H Beams
+U Channels
+C Channels
+Angle Bars
+T Bars
+Flat Bars
+Square Bars
+Round Bars
+Steel Pipes & Tubes
+Round Pipes
+Square Pipes
+Rectangular Pipes
+Galvanized Pipes
+Seamless Pipes
+Welded Pipes
+Black Steel Pipes
+Hollow Sections
+Steel Sheets
+Mild Steel Sheets
+Galvanized Sheets
+Corrugated Sheets
+Chequered Plates
+Hot Rolled Sheets
+Cold Rolled Sheets
+Stainless Steel Sheets
+Steel Plates
+Carbon Steel Plates
+Stainless Plates
+Wear Resistant Plates
+Boiler Plates
+Wire Products
+Binding Wire
+GI Wire
+Steel Wire Rope
+Barbed Wire
+Chain Link Fence
+Welded Mesh
+Expanded Metal
+Steel Accessories
+Pipe Fittings
+Steel Clamps
+Flanges
+Couplings
+Elbows
+Reducers
+2. Aluminum
+Aluminum Profiles
+Door Profiles
+Window Profiles
+Curtain Wall Profiles
+Industrial Profiles
+Aluminum Sheets
+Plain Sheets
+Composite Panels (ACP)
+Embossed Sheets
+Roofing Sheets
+Aluminum Tubes
+Round Tubes
+Square Tubes
+Rectangular Tubes
+Aluminum Bars
+Flat Bars
+Round Bars
+Angle Bars
+Aluminum Accessories
+Handles
+Hinges
+Locks
+Sliding Systems
+Glass Connectors
+3. Construction Machinery
+Earth Moving Equipment
+Excavators
+Backhoe Loaders
+Bulldozers
+Wheel Loaders
+Motor Graders
+Lifting Equipment
+Tower Cranes
+Mobile Cranes
+Forklifts
+Hoists
+Road Equipment
+Asphalt Pavers
+Rollers
+Concrete Cutters
+Concrete Equipment
+Concrete Mixers
+Batching Plants
+Concrete Pumps
+Vibrators
+Compaction Equipment
+Plate Compactors
+Rammers
+Rollers
+Drilling Equipment
+Core Drills
+Rotary Drills
+Jack Hammers
+4. Construction Tools
+Hand Tools
+Hammers
+Pliers
+Screwdrivers
+Chisels
+Wrenches
+Spanners
+Saws
+Levels
+Measuring Tape
+Power Tools
+Angle Grinders
+Drills
+Rotary Hammers
+Circular Saws
+Jig Saws
+Cut-off Machines
+Heat Guns
+Sanders
+Cutting Tools
+Drill Bits
+Saw Blades
+Grinding Discs
+Diamond Blades
+Measuring Tools
+Laser Levels
+Spirit Levels
+Vernier Calipers
+Distance Meters
+5. Building Materials
+Cement
+Sand
+Aggregate
+Gravel
+Blocks
+Bricks
+Gypsum
+Lime
+Mortar
+Ready Mix Concrete
+6. Roofing Materials
+Roofing Sheets
+Corrugated Sheets
+Ridge Caps
+Gutters
+Downpipes
+Roofing Nails
+Roof Insulation
+7. Plumbing
+Pipes
+PVC
+HDPE
+PPR
+CPVC
+GI Pipes
+Pipe Fittings
+Elbows
+Tees
+Couplings
+Reducers
+Unions
+Valves
+Ball Valves
+Gate Valves
+Butterfly Valves
+Sanitary
+Toilets
+Wash Basins
+Kitchen Sinks
+Faucets
+Showers
+8. Electrical Materials
+Cables
+House Wiring
+Power Cables
+Flexible Cables
+Distribution
+Distribution Boards
+Circuit Breakers
+Switches
+Sockets
+Lighting
+LED Bulbs
+Flood Lights
+Street Lights
+Ceiling Lights
+Accessories
+Cable Trays
+Conduits
+Cable Glands
+9. Welding Equipment
+Welding Machines
+MIG Welders
+TIG Welders
+Arc Welders
+Welding Electrodes
+Welding Wires
+Gas Regulators
+Welding Helmets
+10. Fasteners & Hardware
+Bolts
+Nuts
+Washers
+Screws
+Rivets
+Anchors
+Nails
+Hinges
+Locks
+Handles
+11. Paint & Chemicals
+Paint
+Interior
+Exterior
+Epoxy
+Primer
+Construction Chemicals
+Waterproofing
+Tile Adhesives
+Grout
+Sealants
+Silicone
+Epoxy Resin
+12. Safety Equipment (PPE)
+Safety Helmets
+Reflective Vests
+Gloves
+Safety Shoes
+Goggles
+Ear Protection
+Dust Masks
+Respirators
+Harnesses
+13. Industrial Equipment
+Air Compressors
+Generators
+Water Pumps
+Electric Motors
+Pressure Washers
+Diesel Engines
+14. Scaffolding & Formwork
+Scaffolding
+Steel Pipes
+Frames
+Couplers
+Walk Boards
+Base Jacks
+Formwork
+Steel Formwork
+Timber Formwork
+Plastic Formwork
+Plywood
+15. Doors & Windows
+Doors
+Steel Doors
+Wooden Doors
+Security Doors
+Fire Rated Doors
+Windows
+Aluminum Windows
+UPVC Windows
+Sliding Windows
+Casement Windows
+16. Flooring & Finishing
+Ceramic Tiles
+Porcelain Tiles
+Granite
+Marble
+Vinyl Flooring
+Skirting
+Ceiling Boards
+17. Glass
+Tempered Glass
+Laminated Glass
+Reflective Glass
+Clear Glass
+Mirror Glass
+Glass Accessories
+18. Water Systems
+Water Tanks
+Water Pumps
+Borehole Equipment
+Filters
+Solar Water Heaters
+19. Fencing & Security
+Chain Link Fence
+Razor Wire
+Barbed Wire
+Fence Posts
+Gates
+Security Barriers
+20. Agriculture & Irrigation (Optional)
+Water Pumps
+Irrigation Pipes
+Sprinklers
+Drip Systems
+Storage Tanks
+21. Heavy Equipment Spare Parts
+Excavator Parts
+Loader Parts
+Engine Parts
+Hydraulic Pumps
+Filters
+Tracks
+Buckets
+Undercarriage Parts
+22. Industrial Consumables
+Grinding Wheels
+Cutting Discs
+Lubricants
+Grease
+Hydraulic Oil
+Engine Oil
+Cleaning Chemicals
+23. Services
+Equipment Rental
+Steel Fabrication
+Welding Services
+Transportation
+Installation
+Maintenance
+Crane Rental
+24. Brands
+
+Instead of mixing brands with categories, provide a dedicated browsing section where users can filter or shop by brand, for example:
+
+JCB
+Caterpillar
+Komatsu
+Bosch
+Makita
+Hilti
+Total
+Stanley
+Tata Steel
+Jindal
+Dangote Cement
+Derba Cement
+National Cement
+25. Special Marketplace Sections
+
+These improve user engagement and sales:
+
+New Arrivals
+Featured Products
+Best Sellers
+Bulk Orders
+Wholesale Deals
+Clearance Sale
+Made in Ethiopia
+Imported Products
+Certified Products
+Price Drops
+Recommended product attributes (filters)
+
+Across all categories, standardize these filters to improve search and comparison:
+
+Product Category
+Product Type
+Material
+Brand
+Grade/Standard
+Size & Dimensions
+Thickness
+Diameter
+Length
+Width
+Weight
+Surface Finish
+Color
+Unit of Measure (Piece, Bundle, Ton, Meter, Kilogram, Sheet, Roll, Set)
+Country of Origin
+Manufacturer
+Availability (In Stock, Pre-order)
+Condition (New, Used, Refurbished)
+Warranty
+Price
+Minimum Order Quantity (MOQ)
+Supplier
+Delivery Location
+Delivery Time
+Certification (ISO, ASTM, EN, BS, etc.)

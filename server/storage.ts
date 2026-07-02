@@ -188,7 +188,7 @@ export class DatabaseStorage implements IStorage {
 
   // Category operations
   async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories);
+    return await db.select().from(categories).orderBy(categories.sortOrder, categories.name);
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
@@ -210,7 +210,15 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(products.active, true)];
 
     if (filters?.categoryId) {
-      conditions.push(eq(products.categoryId, filters.categoryId));
+      // Include products in the selected category and all of its descendants
+      conditions.push(sql`${products.categoryId} in (
+        with recursive cat_tree as (
+          select id from categories where id = ${filters.categoryId}
+          union all
+          select c.id from categories c join cat_tree ct on c.parent_id = ct.id
+        )
+        select id from cat_tree
+      )`);
     }
 
     if (filters?.search) {
@@ -650,20 +658,36 @@ export class DatabaseStorage implements IStorage {
     const days7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const days14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    // Supply: active listings per category
+    // Category hierarchy: map every category to its top-level (root) category
+    const allCats = await db
+      .select({ id: categories.id, name: categories.name, parentId: categories.parentId })
+      .from(categories);
+    const catById = new Map(allCats.map(c => [c.id, c]));
+    const rootOf = (id: string): { id: string; name: string } => {
+      let current = catById.get(id);
+      let guard = 0;
+      while (current?.parentId && guard < 10) {
+        const parent = catById.get(current.parentId);
+        if (!parent) break;
+        current = parent;
+        guard++;
+      }
+      return current ? { id: current.id, name: current.name } : { id, name: "Unknown" };
+    };
+
+    // Supply: active listings aggregated per (leaf) category, rolled up to root later
     const supplyRows = await db
       .select({
-        categoryId: categories.id,
-        categoryName: categories.name,
+        categoryId: products.categoryId,
         listings: sql<number>`count(${products.id})::int`,
         supplyQuantity: sql<string>`coalesce(sum(${products.quantityAvailable}), 0)::text`,
-        avgPrice: sql<string | null>`round(avg(${products.price}), 2)::text`,
+        sumPrice: sql<string>`coalesce(sum(${products.price}), 0)::text`,
         minPrice: sql<string | null>`min(${products.price})::text`,
         maxPrice: sql<string | null>`max(${products.price})::text`,
       })
-      .from(categories)
-      .leftJoin(products, and(eq(products.categoryId, categories.id), eq(products.active, true)))
-      .groupBy(categories.id, categories.name);
+      .from(products)
+      .where(eq(products.active, true))
+      .groupBy(products.categoryId);
 
     // Demand = pending + completed sales in last 30 days (cancelled excluded)
     const demandRows = await db
@@ -702,18 +726,37 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(products, eq(favorites.productId, products.id))
       .groupBy(products.categoryId);
 
-    // Price trends: market reports from last 14 days
-    const trendRows = await db
+    // Price trends: market reports from last 14 days (rolled up to root categories)
+    const rawTrendRows = await db
       .select({
         date: sql<string>`to_char(${marketReports.reportDate}, 'YYYY-MM-DD')`,
-        categoryName: categories.name,
+        categoryId: marketReports.categoryId,
         averagePrice: marketReports.averagePrice,
         priceChangePercent: marketReports.priceChangePercent,
       })
       .from(marketReports)
-      .innerJoin(categories, eq(marketReports.categoryId, categories.id))
       .where(gte(marketReports.reportDate, days14))
       .orderBy(marketReports.reportDate);
+
+    // Merge trend rows that fall under the same root category on the same date
+    const trendBuckets = new Map<string, { date: string; categoryName: string; prices: number[]; changes: number[] }>();
+    for (const row of rawTrendRows) {
+      const root = rootOf(row.categoryId);
+      const key = `${row.date}|${root.id}`;
+      let bucket = trendBuckets.get(key);
+      if (!bucket) {
+        bucket = { date: row.date, categoryName: root.name, prices: [], changes: [] };
+        trendBuckets.set(key, bucket);
+      }
+      if (row.averagePrice != null) bucket.prices.push(parseFloat(row.averagePrice));
+      if (row.priceChangePercent != null) bucket.changes.push(parseFloat(row.priceChangePercent));
+    }
+    const trendRows = Array.from(trendBuckets.values()).map(b => ({
+      date: b.date,
+      categoryName: b.categoryName,
+      averagePrice: b.prices.length ? (b.prices.reduce((a, v) => a + v, 0) / b.prices.length).toFixed(2) : null,
+      priceChangePercent: b.changes.length ? (b.changes.reduce((a, v) => a + v, 0) / b.changes.length).toFixed(2) : null,
+    }));
 
     // Top products by demand signals
     const topProductRows = await db
@@ -754,23 +797,73 @@ export class DatabaseStorage implements IStorage {
       .from(products)
       .where(eq(products.active, true));
 
-    const demandMap = new Map(demandRows.map(r => [r.categoryId, r]));
-    const viewMap = new Map(viewRows.map(r => [r.categoryId, r]));
-    const favMap = new Map(favoriteRows.map(r => [r.categoryId, r]));
+    // Roll all per-category metrics up to root (main) categories
+    type RootAgg = {
+      categoryId: string;
+      categoryName: string;
+      listings: number;
+      supplyQuantity: number;
+      sumPrice: number;
+      minPrice: number | null;
+      maxPrice: number | null;
+      transactions30d: number;
+      soldQuantity30d: number;
+      views7d: number;
+      favoritesCount: number;
+    };
+    const rootAggs = new Map<string, RootAgg>();
+    const getAgg = (categoryId: string): RootAgg => {
+      const root = rootOf(categoryId);
+      let agg = rootAggs.get(root.id);
+      if (!agg) {
+        agg = {
+          categoryId: root.id, categoryName: root.name,
+          listings: 0, supplyQuantity: 0, sumPrice: 0, minPrice: null, maxPrice: null,
+          transactions30d: 0, soldQuantity30d: 0, views7d: 0, favoritesCount: 0,
+        };
+        rootAggs.set(root.id, agg);
+      }
+      return agg;
+    };
 
-    const categoriesData = supplyRows.map(row => ({
-      categoryId: row.categoryId,
-      categoryName: row.categoryName,
-      listings: row.listings,
-      supplyQuantity: row.supplyQuantity,
-      avgPrice: row.avgPrice,
-      minPrice: row.minPrice,
-      maxPrice: row.maxPrice,
-      transactions30d: demandMap.get(row.categoryId)?.transactions30d ?? 0,
-      soldQuantity30d: demandMap.get(row.categoryId)?.soldQuantity30d ?? "0",
-      views7d: viewMap.get(row.categoryId)?.views7d ?? 0,
-      favoritesCount: favMap.get(row.categoryId)?.favoritesCount ?? 0,
-    }));
+    for (const row of supplyRows) {
+      const agg = getAgg(row.categoryId);
+      agg.listings += row.listings;
+      agg.supplyQuantity += parseFloat(row.supplyQuantity || "0");
+      agg.sumPrice += parseFloat(row.sumPrice || "0");
+      const rowMin = row.minPrice != null ? parseFloat(row.minPrice) : null;
+      const rowMax = row.maxPrice != null ? parseFloat(row.maxPrice) : null;
+      if (rowMin != null) agg.minPrice = agg.minPrice == null ? rowMin : Math.min(agg.minPrice, rowMin);
+      if (rowMax != null) agg.maxPrice = agg.maxPrice == null ? rowMax : Math.max(agg.maxPrice, rowMax);
+    }
+    for (const row of demandRows) {
+      const agg = getAgg(row.categoryId);
+      agg.transactions30d += row.transactions30d;
+      agg.soldQuantity30d += parseFloat(row.soldQuantity30d || "0");
+    }
+    for (const row of viewRows) {
+      getAgg(row.categoryId).views7d += row.views7d;
+    }
+    for (const row of favoriteRows) {
+      getAgg(row.categoryId).favoritesCount += row.favoritesCount;
+    }
+
+    const categoriesData = Array.from(rootAggs.values())
+      .filter(agg => agg.listings > 0 || agg.transactions30d > 0)
+      .sort((a, b) => b.listings - a.listings)
+      .map(agg => ({
+        categoryId: agg.categoryId,
+        categoryName: agg.categoryName,
+        listings: agg.listings,
+        supplyQuantity: agg.supplyQuantity.toFixed(2),
+        avgPrice: agg.listings > 0 ? (agg.sumPrice / agg.listings).toFixed(2) : null,
+        minPrice: agg.minPrice != null ? agg.minPrice.toFixed(2) : null,
+        maxPrice: agg.maxPrice != null ? agg.maxPrice.toFixed(2) : null,
+        transactions30d: agg.transactions30d,
+        soldQuantity30d: agg.soldQuantity30d.toFixed(2),
+        views7d: agg.views7d,
+        favoritesCount: agg.favoritesCount,
+      }));
 
     // Rank top products by a composite demand score
     const topProducts = topProductRows

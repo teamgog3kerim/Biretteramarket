@@ -1,3 +1,4 @@
 - [Dual auth provider](auth-dual-provider.md) — Telegram Mini App + Replit OIDC share one Passport/session; see file for conventions.
 - [Users table explicit select](users-table-explicit-select.md) — adding a `users` column breaks a hand-written select in storage; tsc fails until you add it to the top-sellers query too.
 - [Single-default flag management](default-flag-management.md) — "set default" must verify target ownership before clearing existing defaults, or an invalid id leaves the user with none.
+- [Category hierarchy conventions](category-hierarchy.md) — 3-level tree via parent_id; filter with descendants, analytics roll up to root, never raw category_id equality.

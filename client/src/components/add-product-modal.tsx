@@ -42,10 +42,18 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [mainCategoryId, setMainCategoryId] = useState("");
+  const [subCategoryId, setSubCategoryId] = useState("");
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
+
+  const byOrder = (a: Category, b: Category) =>
+    (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name);
+  const mainCategories = categories.filter((c) => !c.parentId).sort(byOrder);
+  const subCategories = categories.filter((c) => c.parentId === mainCategoryId).sort(byOrder);
+  const productTypes = categories.filter((c) => c.parentId === subCategoryId).sort(byOrder);
 
   const form = useForm<AddProductFormData>({
     resolver: zodResolver(addProductSchema),
@@ -89,6 +97,8 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
       
       form.reset();
       setSelectedImages([]);
+      setMainCategoryId("");
+      setSubCategoryId("");
       onOpenChange(false);
     },
     onError: (error) => {
@@ -163,7 +173,17 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setMainCategoryId("");
+          setSubCategoryId("");
+          form.setValue("categoryId", "");
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
@@ -305,26 +325,78 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
             <FormField
               control={form.control}
               name="categoryId"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel>Category *</FormLabel>
-                  <FormControl>
-                    <Select 
-                      value={field.value} 
-                      onValueChange={field.onChange}
+                  <div className="space-y-2">
+                    <Select
+                      value={mainCategoryId}
+                      onValueChange={(value) => {
+                        setMainCategoryId(value);
+                        setSubCategoryId("");
+                        form.setValue("categoryId", value, { shouldValidate: true });
+                      }}
                     >
                       <SelectTrigger data-testid="select-product-category">
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {mainCategories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </FormControl>
+
+                    {subCategories.length > 0 && (
+                      <Select
+                        value={subCategoryId}
+                        onValueChange={(value) => {
+                          setSubCategoryId(value);
+                          form.setValue("categoryId", value, { shouldValidate: true });
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-product-subcategory">
+                          <SelectValue placeholder="Select a subcategory (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subCategories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {productTypes.length > 0 && (
+                      <Select
+                        value={
+                          productTypes.some((t) => t.id === form.watch("categoryId"))
+                            ? form.watch("categoryId")
+                            : ""
+                        }
+                        onValueChange={(value) => {
+                          form.setValue("categoryId", value, { shouldValidate: true });
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-product-type">
+                          <SelectValue placeholder="Select a product type (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {productTypes.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <FormDescription>
+                    Pick the closest match — the more specific, the easier buyers can find it
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/product-card";
 import SubscriptionModal from "@/components/subscription-modal";
 import { useState } from "react";
-import { Search, Filter, Bell, User, Calculator, Hammer, Factory, HardHat } from "lucide-react";
+import { Search, Filter, Bell, User, Calculator, Factory, HardHat, Wrench } from "lucide-react";
+import { useLocation } from "wouter";
 import type { Product, User as UserType, Category } from "@shared/schema";
 
 type ProductWithRelations = Product & { seller: UserType; category: Category };
@@ -14,6 +15,7 @@ type TopSeller = UserType & { productCount: number };
 
 export default function Home() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -30,10 +32,10 @@ export default function Home() {
   });
 
   const quickCategories = [
-    { name: "Steel", icon: Hammer, color: "text-secondary" },
-    { name: "Iron", icon: Factory, color: "text-secondary" },
-    { name: "Construction", icon: HardHat, color: "text-secondary" },
-    { name: "Calculators", icon: Calculator, color: "text-secondary" },
+    { name: "Steel & Iron", icon: Factory, color: "text-secondary", href: "/categories" },
+    { name: "Building", icon: HardHat, color: "text-secondary", href: "/categories" },
+    { name: "Tools", icon: Wrench, color: "text-secondary", href: "/categories" },
+    { name: "Calculators", icon: Calculator, color: "text-secondary", href: "/calculators" },
   ];
 
   return (
@@ -96,7 +98,8 @@ export default function Home() {
                 key={category.name}
                 variant="outline"
                 className="flex flex-col p-3 sm:p-4 h-auto space-y-1 sm:space-y-2"
-                data-testid={`button-category-${category.name.toLowerCase()}`}
+                onClick={() => setLocation(category.href)}
+                data-testid={`button-category-${category.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
               >
                 <Icon className={`h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 ${category.color}`} />
                 <span className="text-xs sm:text-sm font-medium">{category.name}</span>
